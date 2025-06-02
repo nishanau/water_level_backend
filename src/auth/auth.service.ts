@@ -6,7 +6,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
 import * as bcrypt from 'bcrypt';
-
+import { CreateUserDto, UserResponse, LoginResponse } from './types/auth.types';
 
 @Injectable()
 export class AuthService {
@@ -15,7 +15,10 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
-  async validateUser(email: string, password: string): Promise<any> {
+  async validateUser(
+    email: string,
+    password: string,
+  ): Promise<UserResponse | null> {
     const user = await this.usersService.findByEmail(email);
     if (!user) {
       return null;
@@ -25,12 +28,15 @@ export class AuthService {
     if (!isPasswordValid) {
       return null;
     }
-    //eslintignore-next-line @typescript-eslint/no-unused-vars
-    const { password: _, ...result } = user.toObject();
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password: _pass, ...result } = user.toObject() as UserResponse & {
+      password: string;
+    };
     return result;
   }
 
-  async login(user: any) {
+  async login(user: UserResponse): Promise<LoginResponse> {
     const payload = {
       email: user.email,
       sub: user._id,
@@ -39,37 +45,35 @@ export class AuthService {
 
     return {
       user,
-      access_token: this.jwtService.sign(payload),
+      access_token: await this.jwtService.signAsync(payload),
     };
   }
 
-  async register(userData) {
+  async register(userData: CreateUserDto): Promise<UserResponse> {
     // Hash the password
     const salt = await bcrypt.genSalt();
     const hashedPassword = await bcrypt.hash(userData.password, salt);
 
     // Create a new user
-
     const existingUser = await this.usersService.findByEmail(userData.email);
     if (existingUser) {
       throw new ConflictException('Email already exists');
     }
 
-    try {
-      const createdUser = await this.usersService.create({
-        ...userData,
-        password: hashedPassword,
-      });
-    } catch (error) {
-      throw new Error('Error creating user: ' + error.message);
-    }
+    const createdUser = await this.usersService.create({
+      ...userData,
+      password: hashedPassword,
+    });
 
-    // Return user without password
-    const { password: _, ...result } = createdUser.toObject();
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password: _pass, ...result } =
+      createdUser.toObject() as UserResponse & {
+        password: string;
+      };
     return result;
   }
 
-  async refreshToken(userId: string) {
+  async refreshToken(userId: string): Promise<{ access_token: string }> {
     const user = await this.usersService.findById(userId);
     if (!user) {
       throw new UnauthorizedException('Invalid user');
