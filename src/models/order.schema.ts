@@ -43,10 +43,17 @@ export class Order {
   @Prop({ type: Date })
   actualDeliveryDate: Date;
 
-  @Prop({ 
-    required: true, 
-    enum: ['placed', 'acknowledged', 'scheduled', 'in_transit', 'delivered', 'cancelled'],
-    default: 'placed'
+  @Prop({
+    required: true,
+    enum: [
+      'placed',
+      'acknowledged',
+      'scheduled',
+      'in_transit',
+      'delivered',
+      'cancelled',
+    ],
+    default: 'placed',
   })
   status: string;
 
@@ -54,7 +61,7 @@ export class Order {
   statusHistory: StatusHistory[];
 
   @Prop({ required: true })
-  amount: number;
+  quantity: number;
 
   @Prop({ required: true })
   price: number;
@@ -62,9 +69,9 @@ export class Order {
   @Prop()
   invoiceNumber: string;
 
-  @Prop({ 
+  @Prop({
     enum: ['pending', 'paid', 'failed', 'refunded'],
-    default: 'pending'
+    default: 'pending',
   })
   paymentStatus: string;
 

@@ -39,7 +39,10 @@ export class NotificationPreferences {
 @Schema({ timestamps: true })
 export class User {
   @Prop({ required: true })
-  name: string;
+  firstName: string;
+
+  @Prop({ required: true })
+  lastName: string;
 
   @Prop({ required: true, unique: true })
   email: string;
@@ -48,9 +51,13 @@ export class User {
   password: string;
 
   @Prop()
-  phone: string;
+  phoneNumber: string;
 
-  @Prop({ required: true, enum: ['customer', 'supplier', 'admin'], default: 'customer' })
+  @Prop({
+    required: true,
+    enum: ['customer', 'supplier', 'admin'],
+    default: 'customer',
+  })
   role: string;
 
   @Prop({ type: Address })
