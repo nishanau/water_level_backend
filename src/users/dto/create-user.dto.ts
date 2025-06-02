@@ -63,7 +63,7 @@ export class CreateUserDto {
 
   @IsNotEmpty()
   @IsString()
-  @MinLength(6)
+  @MinLength(8)
   password: string;
 
   @IsOptional()
@@ -74,7 +74,7 @@ export class CreateUserDto {
   @IsEnum(['customer', 'supplier', 'admin'])
   role?: string;
 
-  @IsOptional()
+  @IsNotEmpty()
   @ValidateNested()
   @Type(() => AddressDto)
   address?: AddressDto;
