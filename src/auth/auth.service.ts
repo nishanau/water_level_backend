@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   UnauthorizedException,
@@ -51,6 +52,18 @@ export class AuthService {
 
   async register(userData: CreateUserDto): Promise<UserResponse> {
     // Hash the password
+
+    if (
+      !userData.password ||
+      userData.password.trim() === '' ||
+      !userData.email ||
+      !userData.firstName ||
+      !userData.lastName ||
+      !userData.role ||
+      userData.password.trim().length === 0
+    ) {
+      throw new BadRequestException('All fields are required');
+    }
     const salt = await bcrypt.genSalt();
     const hashedPassword = await bcrypt.hash(userData.password, salt);
 
