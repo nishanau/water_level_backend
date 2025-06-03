@@ -15,7 +15,15 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiResponse,
+} from '@nestjs/swagger';
+import { UpdateNotificationPreferencesDto } from '../notifications/dto/update-notification-preferences.dto';
 
+@ApiTags('users')
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
@@ -53,12 +61,21 @@ export class UsersController {
     return this.usersService.update(req.user.userId, updateUserDto);
   }
 
+  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @Patch('notification-preferences')
-  updateNotificationPreferences(@Request() req, @Body() preferences: any) {
+  @ApiOperation({ summary: 'Update user notification preferences' })
+  @ApiResponse({
+    status: 200,
+    description: 'Notification preferences updated successfully',
+  })
+  updateNotificationPreferences(
+    @Request() req,
+    @Body() updateNotificationPreferencesDto: UpdateNotificationPreferencesDto,
+  ) {
     return this.usersService.updateNotificationPreferences(
       req.user.userId,
-      preferences,
+      updateNotificationPreferencesDto,
     );
   }
 

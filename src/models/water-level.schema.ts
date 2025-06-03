@@ -18,7 +18,11 @@ export class WaterLevel {
   @Prop({ required: true, default: Date.now })
   timestamp: Date;
 
-  @Prop({ required: true, enum: ['sensor', 'manual', 'estimated'], default: 'sensor' })
+  @Prop({
+    required: true,
+    enum: ['sensor', 'manual', 'estimated'],
+    default: 'sensor',
+  })
   source: string;
 }
 

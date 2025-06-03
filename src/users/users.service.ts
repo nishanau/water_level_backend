@@ -18,12 +18,8 @@ export class UsersService {
     return this.userModel.find().exec();
   }
 
-  async findById(id: string): Promise<UserDocument> {
-    const user = await this.userModel.findById(id).exec();
-    if (!user) {
-      throw new NotFoundException(`User with ID ${id} not found`);
-    }
-    return user;
+  async findById(id: string): Promise<UserDocument | null> {
+    return this.userModel.findById(id).exec();
   }
 
   async findByEmail(email: string): Promise<UserDocument | null> {
@@ -33,35 +29,39 @@ export class UsersService {
   async update(
     id: string,
     updateUserDto: UpdateUserDto,
-  ): Promise<UserDocument> {
-    const updatedUser = await this.userModel
+  ): Promise<UserDocument | null> {
+    return this.userModel
       .findByIdAndUpdate(id, updateUserDto, { new: true })
       .exec();
-
-    if (!updatedUser) {
-      throw new NotFoundException(`User with ID ${id} not found`);
-    }
-
-    return updatedUser;
   }
 
-  async updateNotificationPreferences(
-    id: string,
-    preferences: Record<string, boolean>,
-  ): Promise<UserDocument> {
-    const user = await this.findById(id);
-    user.notificationPreferences = {
-      ...user.notificationPreferences,
-      ...preferences,
-    };
+  async remove(id: string): Promise<UserDocument | null> {
+    return this.userModel.findByIdAndDelete(id).exec();
+  }
+
+  async updateUser(user: UserDocument): Promise<UserDocument> {
     return user.save();
   }
 
-  async remove(id: string): Promise<UserDocument> {
-    const deletedUser = await this.userModel.findByIdAndDelete(id).exec();
-    if (!deletedUser) {
-      throw new NotFoundException(`User with ID ${id} not found`);
-    }
-    return deletedUser;
+  async updateNotificationPreferences(
+    userId: string,
+    preferences: { push?: boolean; email?: boolean; sms?: boolean },
+  ): Promise<UserDocument | null> {
+    return this.userModel
+      .findByIdAndUpdate(
+        userId,
+        {
+          $set: {
+            'notificationPreferences.push':
+              preferences.push !== undefined ? preferences.push : undefined,
+            'notificationPreferences.email':
+              preferences.email !== undefined ? preferences.email : undefined,
+            'notificationPreferences.sms':
+              preferences.sms !== undefined ? preferences.sms : undefined,
+          },
+        },
+        { new: true },
+      )
+      .exec();
   }
 }

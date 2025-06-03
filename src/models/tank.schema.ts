@@ -32,6 +32,9 @@ export class Tank {
 
   @Prop({ type: Date })
   lastMaintenance: Date;
+
+  @Prop({ default: 0 })
+  currentWaterLevel: number;
 }
 
 export const TankSchema = SchemaFactory.createForClass(Tank);

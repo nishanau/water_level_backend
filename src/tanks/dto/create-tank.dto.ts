@@ -47,4 +47,8 @@ export class CreateTankDto {
   @IsDate()
   @Type(() => Date)
   lastMaintenance?: Date;
+
+  @IsNotEmpty()
+  @IsNumber()
+  currentWaterLevel: number;
 }

@@ -7,7 +7,7 @@ import {
   IsEnum,
   ValidateNested,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 
 export class AddressDto {
   @IsOptional()
@@ -49,14 +49,17 @@ export class NotificationPreferencesDto {
 }
 
 export class CreateUserDto {
+  @Transform(({ value }: { value: string }) => value.trim())
   @IsNotEmpty()
   @IsString()
   firstName: string;
 
+  @Transform(({ value }: { value: string }) => value.trim())
   @IsNotEmpty()
   @IsString()
   lastName: string;
 
+  @Transform(({ value }: { value: string }) => value.trim().toLowerCase())
   @IsNotEmpty()
   @IsEmail()
   email: string;
@@ -66,15 +69,16 @@ export class CreateUserDto {
   @MinLength(8)
   password: string;
 
-  @IsOptional()
   @IsString()
-  phoneNumber?: string;
+  @IsNotEmpty()
+  @Transform(({ value }: { value: string }) => value.trim())
+  phoneNumber: string;
 
   @IsOptional()
   @IsEnum(['customer', 'supplier', 'admin'])
   role?: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @ValidateNested()
   @Type(() => AddressDto)
   address?: AddressDto;
