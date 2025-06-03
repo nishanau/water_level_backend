@@ -87,4 +87,7 @@ export class CreateUserDto {
   @ValidateNested()
   @Type(() => NotificationPreferencesDto)
   notificationPreferences?: NotificationPreferencesDto;
+
+  @IsOptional()
+  autoOrder?: boolean;
 }

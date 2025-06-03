@@ -2,7 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
-  UnauthorizedException,
+  NotFoundException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
@@ -38,7 +38,7 @@ export class AuthService {
   ): Promise<UserResponse | null> {
     const user = await this.usersService.findByEmail(email);
     if (!user) {
-      return null;
+      throw new NotFoundException('User not found');
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
@@ -46,8 +46,8 @@ export class AuthService {
       return null;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const userObject = user.toJSON ? user.toJSON() : user;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password: _pass, ...result } = userObject as UserResponse & {
       password: string;
     };
@@ -118,8 +118,8 @@ export class AuthService {
       password: hashedPassword,
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const userObject = createdUser.toJSON ? createdUser.toJSON() : createdUser;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password: _pass, ...result } = userObject as UserResponse & {
       password: string;
     };
@@ -129,12 +129,12 @@ export class AuthService {
   async refreshToken(userId: string): Promise<{ access_token: string }> {
     const user = await this.usersService.findById(userId);
     if (!user) {
-      throw new UnauthorizedException('Invalid user');
+      throw new NotFoundException('Invalid user');
     }
 
     const payload = {
       email: user.email,
-      sub: (user._id as string | { toString(): string }).toString(),
+      sub: userId,
       role: user.role,
     };
 
@@ -142,12 +142,14 @@ export class AuthService {
     return { access_token: accessToken };
   }
 
-  async logout(token: string): Promise<void> {
+  logout(token: string): Promise<void> {
     // Add the token to invalidated tokens set
     this.invalidatedTokens.add(token);
 
     // Optional: Clean up old tokens periodically
     this.cleanupInvalidatedTokens();
+
+    return Promise.resolve();
   }
 
   isTokenInvalid(token: string): boolean {

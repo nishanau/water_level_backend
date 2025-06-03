@@ -18,9 +18,6 @@ export class Tank {
   @Prop({ default: 20 })
   lowWaterThreshold: number;
 
-  @Prop({ default: false })
-  autoOrder: boolean;
-
   @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'User' })
   preferredSupplier: User;
 

@@ -63,6 +63,9 @@ export class User {
   @Prop({ type: Address })
   address: Address;
 
+  @Prop({ default: false })
+  autoOrder: boolean;
+
   @Prop({ type: NotificationPreferences, default: {} })
   notificationPreferences: NotificationPreferences;
 }
