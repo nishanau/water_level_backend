@@ -9,6 +9,7 @@ import { TanksModule } from './tanks/tanks.module';
 import { WaterLevelsModule } from './water-levels/water-levels.module';
 import { OrdersModule } from './orders/orders.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { SuppliersModule } from './suppliers/suppliers.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     WaterLevelsModule,
     OrdersModule,
     NotificationsModule,
+    SuppliersModule,
   ],
   controllers: [AppController],
   providers: [AppService],

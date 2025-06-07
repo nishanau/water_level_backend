@@ -1,6 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Schema as MongooseSchema } from 'mongoose';
-import { User, UserSchema } from './user.schema';
 
 export type SupplierDocument = Supplier & Document;
 
@@ -41,7 +40,29 @@ export class Review {
 }
 
 @Schema()
-export class Supplier extends User {
+export class Supplier extends Document {
+  @Prop({ required: true })
+  firstName: string;
+
+  @Prop({ required: true })
+  lastName: string;
+
+  @Prop({ required: true, unique: true })
+  email: string;
+
+  @Prop({ required: true })
+  password: string;
+
+  @Prop()
+  phoneNumber: string;
+
+  @Prop({
+    required: true,
+    enum: ['supplier'],
+    default: 'supplier',
+  })
+  role: string;
+
   @Prop()
   company: string;
 
@@ -68,6 +89,3 @@ export class Supplier extends User {
 }
 
 export const SupplierSchema = SchemaFactory.createForClass(Supplier);
-
-// Add all fields from UserSchema
-SupplierSchema.add(UserSchema);

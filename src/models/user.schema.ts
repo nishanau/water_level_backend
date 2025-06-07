@@ -68,6 +68,9 @@ export class User {
 
   @Prop({ type: NotificationPreferences, default: {} })
   notificationPreferences: NotificationPreferences;
+
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Supplier' })
+  preferredSupplier: MongooseSchema.Types.ObjectId;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

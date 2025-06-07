@@ -90,4 +90,7 @@ export class CreateUserDto {
 
   @IsOptional()
   autoOrder?: boolean;
+
+  @IsOptional()
+  preferredSupplier?: string;
 }
