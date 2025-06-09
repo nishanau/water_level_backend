@@ -32,6 +32,11 @@ export class CreateOrderDto {
   @Type(() => Date)
   scheduledDeliveryDate?: Date;
 
+  @IsNotEmpty()
+  @IsDate()
+  @Type(() => Date)
+  requestedDeliveryDate?: Date;
+
   @IsOptional()
   deliveryNotes?: string;
 }

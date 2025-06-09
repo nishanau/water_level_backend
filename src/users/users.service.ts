@@ -3,12 +3,14 @@ import {
   NotFoundException,
   InternalServerErrorException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Error as MongooseError } from 'mongoose';
 import { User, UserDocument } from '../models/user.schema';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UsersService {
@@ -109,6 +111,33 @@ export class UsersService {
       );
     }
   }
+  async findPasswordById(id: string): Promise<string | null> {
+    try {
+      if (!id.match(/^[0-9a-fA-F]{24}$/)) {
+        throw new BadRequestException(`Invalid user ID format: ${id}`);
+      }
+
+      const user = await this.userModel.findById(id, '+password').exec();
+      if (!user) {
+        throw new NotFoundException(`User with ID ${id} not found`);
+      }
+
+      return user.password;
+    } catch (error: unknown) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error occurred';
+      throw new InternalServerErrorException(
+        `Failed to find password for user with ID ${id}`,
+        errorMessage,
+      );
+    }
+  }
 
   async update(
     id: string,
@@ -118,14 +147,20 @@ export class UsersService {
       if (!id.match(/^[0-9a-fA-F]{24}$/)) {
         throw new BadRequestException(`Invalid user ID format: ${id}`);
       }
-
+      //check if the request is to update the password
+      if (updateUserDto.password) {
+        const salt = await bcrypt.genSalt();
+        updateUserDto.password = await bcrypt.hash(
+          updateUserDto.password,
+          salt,
+        );
+      }
       const user = await this.userModel
         .findByIdAndUpdate(id, updateUserDto, {
           new: true,
           runValidators: true,
         })
         .exec();
-
       if (!user) {
         throw new NotFoundException(`User with ID ${id} not found`);
       }
@@ -149,7 +184,7 @@ export class UsersService {
         'code' in error &&
         error.code === 11000
       ) {
-        throw new BadRequestException('A user with this email already exists');
+        throw new ConflictException('A user with this email already exists');
       }
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error occurred';

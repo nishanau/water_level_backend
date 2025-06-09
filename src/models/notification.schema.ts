@@ -4,15 +4,6 @@ import { User } from './user.schema';
 
 export type NotificationDocument = Notification & Document;
 
-@Schema()
-export class RelatedTo {
-  @Prop({ required: true, enum: ['order', 'tank', 'system'] })
-  model: string;
-
-  @Prop({ type: MongooseSchema.Types.ObjectId })
-  id: MongooseSchema.Types.ObjectId;
-}
-
 @Schema({ timestamps: true })
 export class Notification {
   @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'User', required: true })
@@ -27,8 +18,11 @@ export class Notification {
   @Prop({ required: true })
   message: string;
 
-  @Prop({ type: RelatedTo })
-  relatedTo: RelatedTo;
+  @Prop({
+    enum: ['order', 'tank', 'system', 'payment', 'users'],
+    required: true,
+  })
+  relatedTo: string;
 
   @Prop({ default: false })
   read: boolean;

@@ -12,7 +12,6 @@ import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { RescheduleOrderDto } from './dto/reschedule-order.dto';
-import { CancelOrderDto } from './dto/cancel-order.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -54,12 +53,8 @@ export class OrdersController {
   }
 
   @Patch(':id/cancel')
-  cancelOrder(
-    @Param('id') id: string,
-    @Body() cancelOrderDto: CancelOrderDto,
-    @Request() req,
-  ) {
-    return this.ordersService.cancel(id, cancelOrderDto.notes, req.user.userId);
+  cancelOrder(@Param('id') id: string, @Request() req) {
+    return this.ordersService.cancel(id, req.user.userId);
   }
 
   @Patch(':id/reschedule')

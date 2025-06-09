@@ -5,15 +5,6 @@ import {
   IsString,
   IsOptional,
 } from 'class-validator';
-import { Type } from 'class-transformer';
-
-export class RelatedToDto {
-  @IsEnum(['order', 'tank', 'system'])
-  model: string;
-
-  @IsMongoId()
-  id: string;
-}
 
 export class CreateNotificationDto {
   @IsNotEmpty()
@@ -28,9 +19,9 @@ export class CreateNotificationDto {
   @IsString()
   message: string;
 
-  @IsOptional()
-  @Type(() => RelatedToDto)
-  relatedTo?: RelatedToDto;
+  @IsNotEmpty()
+  @IsEnum(['order', 'tank', 'system', 'payment', 'users'])
+  relatedTo?: string;
 
   @IsOptional()
   read?: boolean;

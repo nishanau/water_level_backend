@@ -5,9 +5,12 @@ import {
   Param,
   UseGuards,
   Request,
+  Post,
+  Body,
 } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CreateNotificationDto } from './dto/create-notification.dto';
 
 @Controller('notifications')
 @UseGuards(JwtAuthGuard)
@@ -17,6 +20,10 @@ export class NotificationsController {
   @Get()
   findAll(@Request() req) {
     return this.notificationsService.findAllForUser(req.user.userId);
+  }
+  @Post()
+  create(@Body() createNotificationDto: CreateNotificationDto) {
+    return this.notificationsService.create(createNotificationDto);
   }
 
   @Patch(':id/read')

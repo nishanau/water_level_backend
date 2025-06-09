@@ -38,6 +38,9 @@ export class Order {
   orderDate: Date;
 
   @Prop({ type: Date })
+  requestedDeliveryDate: Date;
+
+  @Prop({ type: Date })
   scheduledDeliveryDate: Date;
 
   @Prop({ type: Date })

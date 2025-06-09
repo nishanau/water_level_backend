@@ -38,6 +38,7 @@ export class AuthService {
   ): Promise<UserResponse | null> {
     const user = await this.usersService.findByEmail(email);
     if (!user) {
+      console.error(`User with email ${email} not found`);
       throw new NotFoundException('User not found');
     }
 
@@ -140,6 +141,15 @@ export class AuthService {
 
     const accessToken = await this.jwtService.signAsync(payload);
     return { access_token: accessToken };
+  }
+  async checkPassword(userId: string, password: string): Promise<boolean> {
+    // Ensure password field is selected
+    const fetchedPassword = await this.usersService.findPasswordById(userId);
+    if (!fetchedPassword) {
+      throw new NotFoundException('User not found or password not available');
+    }
+
+    return bcrypt.compare(password, fetchedPassword);
   }
 
   logout(token: string): Promise<void> {
