@@ -11,6 +11,7 @@ import { User, UserDocument } from '../models/user.schema';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import * as bcrypt from 'bcrypt';
+import { UserResponse } from 'src/auth/types/auth.types';
 
 @Injectable()
 export class UsersService {
@@ -59,7 +60,7 @@ export class UsersService {
     }
   }
 
-  async findById(id: string): Promise<Omit<User, 'password'> | null> {
+  async findById(id: string): Promise<UserResponse | null> {
     try {
       if (!id.match(/^[0-9a-fA-F]{24}$/)) {
         throw new BadRequestException(`Invalid user ID format: ${id}`);
@@ -71,7 +72,10 @@ export class UsersService {
       }
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { password, ...userWithoutPassword } = user.toObject();
-      return userWithoutPassword;
+      return {
+        ...userWithoutPassword,
+        _id: userWithoutPassword._id as string,
+      } as UserResponse;
     } catch (error: unknown) {
       if (
         error instanceof NotFoundException ||
@@ -92,7 +96,7 @@ export class UsersService {
     try {
       const user = await this.userModel.findOne({ email }).exec();
       if (!user) {
-        throw new NotFoundException(`User with email ${email} not found`);
+        return null; // Return null if user not found
       }
 
       return user;

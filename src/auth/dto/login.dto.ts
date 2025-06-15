@@ -1,4 +1,4 @@
-import { IsEmail, IsNotEmpty, MinLength } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsOptional, MinLength } from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class LoginDto {
@@ -10,4 +10,7 @@ export class LoginDto {
   @IsNotEmpty()
   @MinLength(6)
   password: string;
+
+  @IsOptional()
+  role: string; // 'user' | 'supplier' | 'admin'
 }

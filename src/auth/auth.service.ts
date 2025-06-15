@@ -3,25 +3,29 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
+import { SuppliersService } from 'src/suppliers/suppliers.service';
 import * as bcrypt from 'bcrypt';
 import { UserResponse } from './types/auth.types';
 import { CreateUserDto } from '../users/dto/create-user.dto';
-import { LoginResponse } from './types/auth.types';
+import { LoginResponse, SupplierResponse } from './types/auth.types';
 import { Model } from 'mongoose';
 import { InjectModel } from '@nestjs/mongoose';
 import { Tank } from '../models/tank.schema';
 import { Order } from '../models/order.schema';
 import { Notification } from '../models/notification.schema';
 import { PaymentMethod } from '../models/payment-method.schema';
+import { Types } from 'mongoose';
 
 @Injectable()
 export class AuthService {
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
+    private supplierService: SuppliersService,
     @InjectModel(Tank.name) private tankModel: Model<Tank>,
     @InjectModel(Order.name) private orderModel: Model<Order>,
     @InjectModel(Notification.name)
@@ -35,11 +39,32 @@ export class AuthService {
   async validateUser(
     email: string,
     password: string,
-  ): Promise<UserResponse | null> {
-    const user = await this.usersService.findByEmail(email);
+  ): Promise<UserResponse | SupplierResponse | null> {
+    const user = await this.usersService.findByEmail(email.trim());
+
     if (!user) {
-      console.error(`User with email ${email} not found`);
-      throw new NotFoundException('User not found');
+      const supplier = await this.supplierService.findByEmail(email.trim());
+
+      if (supplier) {
+        const isPasswordValid = await bcrypt.compare(
+          password,
+          supplier.password,
+        );
+        if (!isPasswordValid) {
+          return null;
+        }
+
+        const userObject = supplier.toJSON ? supplier.toJSON() : supplier;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { password: _pass, ...result } =
+          userObject as SupplierResponse & {
+            password: string;
+          };
+        return result;
+      } else {
+        console.error(`User with email ${email} not found`);
+        throw new NotFoundException('User not found');
+      }
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
@@ -55,7 +80,7 @@ export class AuthService {
     return result;
   }
 
-  async login(user: UserResponse): Promise<LoginResponse> {
+  async login(user: UserResponse | SupplierResponse): Promise<LoginResponse> {
     const payload = {
       email: user.email,
       sub: user._id,
@@ -70,25 +95,66 @@ export class AuthService {
       ),
     ]);
 
-    // Fetch related data for the user
-    const tanks = await this.tankModel.find({ userId: user._id }).select('_id');
-    const orders = await this.orderModel
-      .find({ userId: user._id })
-      .select('_id');
-    const paymentMethods = await this.paymentMethodModel
-      .find({ userId: user._id })
-      .select('_id');
+    if (user.role === 'customer') {
+      // Fetch related data for the customer
+      const tanks = await this.tankModel
+        .find({ userId: user._id })
+        .select('_id');
+      const orders = await this.orderModel
+        .find({ userId: user._id })
+        .select('_id');
+      const paymentMethods = await this.paymentMethodModel
+        .find({ userId: user._id })
+        .select('_id');
 
-    return {
-      user: {
-        ...user,
-        tankIds: tanks.map((tank) => tank._id),
-        orderIds: orders.map((order) => order._id),
-        paymentMethodIds: paymentMethods.map((method) => method._id),
-      },
-      access_token: accessToken,
-      refresh_token: refreshToken,
-    };
+      return {
+        user: {
+          ...user,
+          tankIds: tanks.map((tank) => tank._id),
+          orderIds: orders.map((order) => order._id),
+          paymentMethodIds: paymentMethods.map((method) => method._id),
+        },
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      };
+    } else {
+      // For suppliers, we can return the user directly
+      return {
+        user,
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      };
+    }
+  }
+
+  async getProfile(
+    userId: string,
+    email: string,
+  ): Promise<UserResponse | SupplierResponse> {
+    // Try to find user in users collection
+    const user = await this.usersService.findById(userId);
+    if (user) {
+      return user;
+    }
+    // If not found, try supplier
+    const supplier = await this.supplierService.findByEmail(email);
+    if (supplier) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { password, ...supplierWithoutPassword } = supplier;
+      return {
+        ...supplierWithoutPassword,
+        _id: (supplier._id as Types.ObjectId).toString(), // Ensure _id is a string
+      };
+    }
+    throw new NotFoundException('User not found');
+  }
+
+  async verifyToken(token: string): Promise<any> {
+    try {
+      return await this.jwtService.verifyAsync(token);
+    } catch (err) {
+      throw new UnauthorizedException('Invalid or expired token', err.message);
+    }
   }
 
   async register(userData: CreateUserDto): Promise<UserResponse> {
@@ -142,6 +208,7 @@ export class AuthService {
     const accessToken = await this.jwtService.signAsync(payload);
     return { access_token: accessToken };
   }
+
   async checkPassword(userId: string, password: string): Promise<boolean> {
     // Ensure password field is selected
     const fetchedPassword = await this.usersService.findPasswordById(userId);

@@ -1,6 +1,7 @@
 import {
   Controller,
   Post,
+  Get,
   Body,
   Request,
   HttpCode,
@@ -9,10 +10,12 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { UserResponse } from './types/auth.types';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { Res } from '@nestjs/common';
+import { Response } from 'express';
+import { UserResponse } from './types/auth.types';
 
 @Controller('auth')
 export class AuthController {
@@ -25,11 +28,16 @@ export class AuthController {
   }
 
   @Post('login')
-  async login(@Body() loginDto: LoginDto) {
+  async login(
+    @Body() loginDto: LoginDto,
+    @Request() req,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     console.log('Attempting login for email:', loginDto.email);
     const userExists = await this.authService.validateUser(
       loginDto.email,
       loginDto.password,
+      // Default to 'user' if no role is provided
     );
 
     if (!userExists) {
@@ -40,7 +48,23 @@ export class AuthController {
     const { user, access_token, refresh_token } =
       await this.authService.login(userExists);
     console.log('Login successful for userId:', user);
-    console.log('Access token generated:', access_token);
+
+    // If supplier, set tokens in cookies
+    if (user.role !== 'customer') {
+      res.cookie('access_token', access_token, {
+        httpOnly: true,
+        sameSite: 'lax',
+        // secure: true, // Uncomment if using HTTPS
+        maxAge: 60 * 60 * 1000, // 1 hour
+      });
+      res.cookie('refresh_token', refresh_token, {
+        httpOnly: true,
+        sameSite: 'lax',
+        // secure: true, // Uncomment if using HTTPS
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      });
+      return { user };
+    }
     return { user, access_token, refresh_token };
   }
 
@@ -60,6 +84,28 @@ export class AuthController {
     }
     await this.authService.logout(token);
     return { message: 'Logged out successfully' };
+  }
+
+  @Get('me')
+  async getProfile(@Request() req, @Res({ passthrough: true }) res: Response) {
+    // Try to get token from Authorization header or cookies
+    let token = req.headers.authorization?.split(' ')[1];
+    if (!token && req.cookies && req.cookies['access_token']) {
+      token = req.cookies['access_token'];
+    }
+
+    if (!token) {
+      throw new UnauthorizedException('No token provided');
+    }
+
+    try {
+      // Verify token
+      const payload = await this.authService.verifyToken(token);
+      // Fetch user profile using payload.sub or payload.userId
+      return this.authService.getProfile(payload.userId, payload.email);
+    } catch {
+      throw new UnauthorizedException('Invalid or expired token');
+    }
   }
 
   @Post('check-password')

@@ -10,6 +10,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Tank, TankSchema } from '../models/tank.schema';
 import { Order, OrderSchema } from '../models/order.schema';
+import { SuppliersModule } from '../suppliers/suppliers.module';
 import {
   Notification,
   NotificationSchema,
@@ -18,10 +19,12 @@ import {
   PaymentMethod,
   PaymentMethodSchema,
 } from '../models/payment-method.schema';
+import { Supplier, SupplierSchema } from '../models/supplier.schema';
 
 @Module({
   imports: [
     UsersModule,
+    SuppliersModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -45,6 +48,7 @@ import {
       { name: Order.name, schema: OrderSchema },
       { name: Notification.name, schema: NotificationSchema },
       { name: PaymentMethod.name, schema: PaymentMethodSchema },
+      { name: Supplier.name, schema: SupplierSchema },
     ]),
   ],
   controllers: [AuthController],

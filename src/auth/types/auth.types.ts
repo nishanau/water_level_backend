@@ -34,3 +34,38 @@ export interface LoginResponse {
   access_token: string;
   refresh_token: string;
 }
+
+export interface ServiceArea {
+  region: string;
+  postalCodes: string[];
+}
+
+export interface PricingTier {
+  minVolume: number;
+  maxVolume: number;
+  pricePerLiter: number;
+}
+
+export interface Review {
+  userId: Types.ObjectId;
+  rating: number;
+  comment?: string;
+  date: Date;
+}
+
+export interface SupplierResponse {
+  _id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phoneNumber?: string;
+  role: string;
+  company?: string;
+  logo?: string;
+  serviceAreas: ServiceArea[];
+  pricing: PricingTier[];
+  avgResponseTime: number;
+  rating: number;
+  reviews: Review[];
+  active: boolean;
+}

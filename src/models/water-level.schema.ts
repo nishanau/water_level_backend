@@ -1,13 +1,19 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Schema as MongooseSchema } from 'mongoose';
-import { Tank } from './tank.schema';
+import { Document } from 'mongoose';
 
 export type WaterLevelDocument = WaterLevel & Document;
 
-@Schema({ timestamps: true })
+@Schema({
+  timeseries: {
+    timeField: 'timestamp',
+    metaField: 'tankId',
+    granularity: 'minutes',
+    expireAfterSeconds: 60 * 24 * 60 * 60, // Optional: expires after 60 days
+  },
+})
 export class WaterLevel {
-  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Tank', required: true })
-  tankId: Tank;
+  @Prop({ required: true })
+  tankId: string;
 
   @Prop({ required: true })
   level: number;
@@ -15,15 +21,11 @@ export class WaterLevel {
   @Prop({ required: true })
   volumeLiters: number;
 
-  @Prop({ required: true, default: Date.now })
+  @Prop({ required: true })
   timestamp: Date;
 
-  @Prop({
-    required: true,
-    enum: ['sensor', 'manual', 'estimated'],
-    default: 'sensor',
-  })
-  source: string;
+  @Prop({ default: 'manual' })
+  source?: string;
 }
 
 export const WaterLevelSchema = SchemaFactory.createForClass(WaterLevel);

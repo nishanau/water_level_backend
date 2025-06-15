@@ -9,6 +9,8 @@ import { Supplier } from '../models/supplier.schema';
 import { CreateSupplierDto } from './dto/create-supplier.dto';
 import { UpdateSupplierDto } from './dto/update-supplier.dto';
 import * as bcrypt from 'bcrypt';
+import { SupplierResponse } from 'src/auth/types/auth.types';
+import { Types } from 'mongoose';
 
 @Injectable()
 export class SuppliersService {
@@ -58,6 +60,15 @@ export class SuppliersService {
       throw new NotFoundException(`Supplier with ID ${id} not found`);
     }
 
+    return supplier;
+  }
+
+  async findByEmail(email: string): Promise<Supplier> {
+    const supplier = await this.supplierModel.findOne({ email }).exec();
+
+    if (!supplier) {
+      throw new NotFoundException(`Supplier with email: ${email} not found`);
+    }
     return supplier;
   }
 
