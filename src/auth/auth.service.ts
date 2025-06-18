@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
   UnauthorizedException,
+  HttpException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
@@ -83,7 +84,7 @@ export class AuthService {
   async login(user: UserResponse | SupplierResponse): Promise<LoginResponse> {
     const payload = {
       email: user.email,
-      sub: user._id,
+      userId: user._id,
       role: user.role,
     };
 
@@ -193,20 +194,57 @@ export class AuthService {
     return result;
   }
 
-  async refreshToken(userId: string): Promise<{ access_token: string }> {
-    const user = await this.usersService.findById(userId);
-    if (!user) {
-      throw new NotFoundException('Invalid user');
+  // In auth.service.ts
+  // In auth.service.ts
+  async refreshToken(refreshToken: string): Promise<{ access_token: string }> {
+    try {
+      // If you don't have configService, you can use your JWT_REFRESH_SECRET directly
+      // or however you're accessing your environment variables
+      const payload = await this.jwtService.verifyAsync(refreshToken, {
+        secret: process.env.JWT_REFRESH_SECRET,
+      });
+
+      // Check if token is expired
+      const now = Math.floor(Date.now() / 1000);
+      if (payload.exp && payload.exp < now) {
+        throw new UnauthorizedException('Refresh token has expired');
+      }
+
+      // Find the user
+      const user = await this.usersService.findById(payload.userId);
+      if (!user) {
+        throw new UnauthorizedException('User no longer exists');
+      }
+
+      // Generate a new access token
+      const newAccessToken = await this.jwtService.signAsync(
+        {
+          userId: user._id,
+          email: user.email,
+          role: user.role,
+        },
+        {
+          secret: process.env.JWT_SECRET || 'your-access-secret',
+          expiresIn: '1h', // Access token expiration
+        },
+      );
+
+      return { access_token: newAccessToken };
+    } catch (error) {
+      // Handle different types of errors
+      if (error.name === 'JsonWebTokenError') {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
+      if (error.name === 'TokenExpiredError') {
+        throw new UnauthorizedException('Refresh token has expired');
+      }
+      // Re-throw the error if it's already an HTTP exception
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      // For any other errors
+      throw new UnauthorizedException('Could not refresh token');
     }
-
-    const payload = {
-      email: user.email,
-      sub: userId,
-      role: user.role,
-    };
-
-    const accessToken = await this.jwtService.signAsync(payload);
-    return { access_token: accessToken };
   }
 
   async checkPassword(userId: string, password: string): Promise<boolean> {
