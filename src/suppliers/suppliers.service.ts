@@ -63,11 +63,11 @@ export class SuppliersService {
     return supplier;
   }
 
-  async findByEmail(email: string): Promise<Supplier> {
-    const supplier = await this.supplierModel.findOne({ email }).exec();
+  async findByEmail(email: string): Promise<Supplier | null> {
+    const supplier = await this.supplierModel.findOne({ email }).lean();
 
     if (!supplier) {
-      throw new NotFoundException(`Supplier with email: ${email} not found`);
+      return null;
     }
     return supplier;
   }
@@ -75,7 +75,7 @@ export class SuppliersService {
   async update(
     id: string,
     updateSupplierDto: UpdateSupplierDto,
-  ): Promise<Supplier> {
+  ): Promise<Supplier | null> {
     // If password is provided, hash it
     if (updateSupplierDto.password) {
       const salt = await bcrypt.genSalt();

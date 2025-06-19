@@ -89,10 +89,10 @@ export class AuthService {
     };
 
     const [accessToken, refreshToken] = await Promise.all([
-      this.jwtService.signAsync(payload),
+      this.jwtService.signAsync(payload, { secret: process.env.JWT_SECRET }),
       this.jwtService.signAsync(
         { ...payload, tokenType: 'refresh' },
-        { expiresIn: '7d' },
+        { secret: process.env.JWT_REFRESH_SECRET, expiresIn: '7d' },
       ),
     ]);
 
@@ -154,6 +154,7 @@ export class AuthService {
     try {
       return await this.jwtService.verifyAsync(token);
     } catch (err) {
+      console.error('Token verification failed:', err);
       throw new UnauthorizedException('Invalid or expired token', err.message);
     }
   }
@@ -224,7 +225,7 @@ export class AuthService {
           role: user.role,
         },
         {
-          secret: process.env.JWT_SECRET || 'your-access-secret',
+          secret: process.env.JWT_SECRET,
           expiresIn: '1h', // Access token expiration
         },
       );
@@ -233,6 +234,7 @@ export class AuthService {
     } catch (error) {
       // Handle different types of errors
       if (error.name === 'JsonWebTokenError') {
+        console.error('JSON Web Token error:', error.message);
         throw new UnauthorizedException('Invalid refresh token');
       }
       if (error.name === 'TokenExpiredError') {
@@ -257,27 +259,27 @@ export class AuthService {
     return bcrypt.compare(password, fetchedPassword);
   }
 
-  logout(token: string): Promise<void> {
-    // Add the token to invalidated tokens set
-    this.invalidatedTokens.add(token);
+  // logout(token: string): Promise<void> {
+  //   // Add the token to invalidated tokens set
+  //   this.invalidatedTokens.add(token);
 
-    // Optional: Clean up old tokens periodically
-    this.cleanupInvalidatedTokens();
+  //   // Optional: Clean up old tokens periodically
+  //   //this.cleanupInvalidatedTokens();
 
-    return Promise.resolve();
-  }
+  //   return Promise.resolve();
+  // }
 
-  isTokenInvalid(token: string): boolean {
-    return this.invalidatedTokens.has(token);
-  }
+  // isTokenInvalid(token: string): boolean {
+  //   return this.invalidatedTokens.has(token);
+  // }
 
-  private cleanupInvalidatedTokens() {
-    // Clean up tokens older than 24 hours
-    setTimeout(
-      () => {
-        this.invalidatedTokens.clear();
-      },
-      24 * 60 * 60 * 1000,
-    );
-  }
+  // private cleanupInvalidatedTokens() {
+  //   // Clean up tokens older than 24 hours
+  //   setTimeout(
+  //     () => {
+  //       this.invalidatedTokens.clear();
+  //     },
+  //     24 * 60 * 60 * 1000,
+  //   );
+  // }
 }

@@ -68,7 +68,7 @@ export class UsersService {
 
       const user = await this.userModel.findById(id).exec();
       if (!user) {
-        throw new NotFoundException(`User with ID ${id} not found`);
+        return null;
       }
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { password, ...userWithoutPassword } = user.toObject();
