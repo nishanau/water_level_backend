@@ -6,7 +6,8 @@ import {
   Param,
   Patch,
   UseGuards,
-  Request,
+  Req,
+  Res,
 } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -22,17 +23,18 @@ export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
   @Post()
-  create(@Body() createOrderDto: CreateOrderDto, @Request() req) {
+  create(@Body() createOrderDto: CreateOrderDto, @Req() req) {
     return this.ordersService.create(createOrderDto, req.user.userId);
   }
 
   @Get()
-  findAll(@Request() req) {
+  findAll(@Req() req, @Res({ passthrough: true }) res: Response,) {
+    
     return this.ordersService.findAll(req.user.userId, req.user.role);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string, @Request() req) {
+  findOne(@Param('id') id: string, @Req() req) {
     return this.ordersService.findOne(id, req.user.userId, req.user.role);
   }
 
@@ -42,7 +44,7 @@ export class OrdersController {
   updateStatus(
     @Param('id') id: string,
     @Body() updateOrderStatusDto: UpdateOrderStatusDto,
-    @Request() req,
+    @Req() req,
   ) {
     return this.ordersService.updateStatus(
       id,
@@ -53,7 +55,7 @@ export class OrdersController {
   }
 
   @Patch(':id/cancel')
-  cancelOrder(@Param('id') id: string, @Request() req) {
+  cancelOrder(@Param('id') id: string, @Req() req) {
     return this.ordersService.cancel(id, req.user.userId);
   }
 
@@ -61,7 +63,7 @@ export class OrdersController {
   rescheduleOrder(
     @Param('id') id: string,
     @Body() rescheduleOrderDto: RescheduleOrderDto,
-    @Request() req,
+    @Req() req,
   ) {
     return this.ordersService.reschedule(
       id,
