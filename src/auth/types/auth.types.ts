@@ -69,3 +69,8 @@ export interface SupplierResponse {
   reviews: Review[];
   active: boolean;
 }
+export interface Payload {
+  userId: string | Types.ObjectId;
+  email: string;
+  role: string;
+}

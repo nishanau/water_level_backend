@@ -57,11 +57,11 @@ export class OrdersService {
     }
   }
 
-  async findAll(userId: string, role: string): Promise<OrderDocument[]> {
+  async findAll(userId: string, role: string): Promise<Order[]> {
     try {
       // If admin, can view all orders
       if (role === 'admin') {
-        return this.orderModel.find().sort({ orderDate: -1 }).exec();
+        return this.orderModel.find().sort({ orderDate: -1 }).lean();
       }
 
       // If supplier, can view orders assigned to them
@@ -69,11 +69,11 @@ export class OrdersService {
         return this.orderModel
           .find({ supplierId: userId })
           .sort({ orderDate: -1 })
-          .exec();
+          .lean();
       }
 
       // Otherwise, users can only view their own orders
-      return this.orderModel.find({ userId }).sort({ orderDate: -1 }).exec();
+      return this.orderModel.find({ userId }).sort({ orderDate: -1 }).lean();
     } catch (error) {
       throw new InternalServerErrorException(
         'Failed to retrieve orders',
@@ -149,52 +149,41 @@ export class OrdersService {
     }
   }
 
-  async updateStatus(
+  async updateAnyField(
     id: string,
-    updateStatusDto: UpdateOrderStatusDto,
+    updateFields: Record<string, any>,
     userId: string,
     role: string,
   ): Promise<OrderDocument> {
     try {
+      // Permission check (reuse your findOne logic)
       const order = await this.findOne(id, userId, role);
 
-      // Only suppliers and admins can update order status
-      if (role !== 'admin' && role !== 'supplier') {
-        throw new ForbiddenException(
-          'Only suppliers and admins can update order status',
-        );
+      // Prevent changing the _id
+      if (updateFields._id) {
+        delete updateFields._id;
       }
 
-      // Update status safely
-      if (updateStatusDto && typeof updateStatusDto.status === 'string') {
-        order.status = updateStatusDto.status;
+      Object.assign(order, updateFields);
 
-        // Create a status history entry
+      // Add status history if status is updated
+      if (updateFields.status) {
         const statusHistoryEntry: Partial<StatusHistory> = {
-          status: updateStatusDto.status,
+          status: updateFields.status,
           timestamp: new Date(),
           notes:
-            updateStatusDto.notes ||
-            `Status updated to ${updateStatusDto.status}`,
+            updateFields.notes || `Status updated to ${updateFields.status}`,
         };
-
-        // Convert userId string to ObjectId for the updatedBy field
         if (userId) {
           statusHistoryEntry.updatedBy = new Types.ObjectId(userId) as any;
         }
-        // Add to status history - safely casting with proper type checks
         order.statusHistory.push(statusHistoryEntry as StatusHistory);
-
-        // If status is 'delivered', set actual delivery date
-        if (updateStatusDto.status === 'delivered') {
-          order.actualDeliveryDate = new Date();
-        }
       }
 
       return order.save();
     } catch (error) {
       throw new InternalServerErrorException(
-        'Failed to update order status',
+        'Failed to update order',
         error.message,
       );
     }

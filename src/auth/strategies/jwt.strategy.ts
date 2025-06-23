@@ -4,8 +4,11 @@ import { Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from '../../users/users.service';
 import { SuppliersService } from '../../suppliers/suppliers.service';
-import { Request, Response } from 'express';
+import { Request } from 'express';
 import * as jwt from 'jsonwebtoken';
+import { UserResponse } from '../types/auth.types';
+import { Supplier } from 'src/models';
+import { Payload } from '../types/auth.types';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
@@ -37,11 +40,11 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     return null;
   }
 
-  async validate(req: Request, payloadOrNull: any) {
+  async validate(req: Request) {
     const secret =
       this.configService.get<string>('JWT_SECRET') || 'super-secret-key';
     const refreshSecret =
-      this.configService.get<string>('REFRESH_TOKEN_SECRET') ||
+      this.configService.get<string>('JWT_REFRESH_SECRET') ||
       'super-secret-key';
     let token: string;
     let payload: any = null;
@@ -53,21 +56,25 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     if (authHeader && authHeader.startsWith('Bearer ')) {
       token = authHeader.split(' ')[1];
       try {
-        payload = jwt.verify(token, secret);
-      } catch (err) {
+        payload = jwt.verify(token, secret) as Payload;
+      } catch {
         // Access token invalid/expired, try x-refresh-token header
         const refreshToken = req.headers['x-refresh-token'] as string;
         if (refreshToken) {
           try {
-            payload = jwt.verify(refreshToken, refreshSecret);
+            payload = jwt.verify(refreshToken, refreshSecret) as Payload;
             // Generate new access token
             newToken = jwt.sign(
-              { userId: payload._id, email: payload.email, role: payload.role },
+              {
+                userId: payload.userId,
+                email: payload.email,
+                role: payload.role,
+              },
               secret,
               { expiresIn: '1h' },
             );
             newTokenFlag = true;
-          } catch (refreshErr) {
+          } catch {
             throw new UnauthorizedException('Invalid or expired refresh token');
           }
         } else {
@@ -78,18 +85,22 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       // 2. Check access_token cookie
       if (req.cookies && req.cookies['access_token']) {
         token = req.cookies['access_token'];
+
         try {
           payload = jwt.verify(token, secret);
-        } catch (err) {
+        } catch {
           // Access token invalid/expired, try refresh_token cookie
           const refreshToken = req.cookies['refresh_token'];
+
           if (refreshToken) {
             try {
-              payload = jwt.verify(refreshToken, refreshSecret);
+              payload = jwt.verify(refreshToken, refreshSecret) as Payload;
+
+              console.log('Refresh token payload:', payload);
               // Generate new access token
               newToken = jwt.sign(
                 {
-                  userId: payload._id,
+                  userId: payload.userId,
                   email: payload.email,
                   role: payload.role,
                 },
@@ -97,32 +108,33 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
                 { expiresIn: '1h' },
               );
               newTokenFlag = true;
-            } catch (refreshErr) {
+            } catch (e) {
               throw new UnauthorizedException(
                 'Invalid or expired refresh token',
+                e.message,
               );
             }
           } else {
             throw new UnauthorizedException('Invalid or expired access token');
           }
         }
-      } else {
-        throw new UnauthorizedException('No authentication token found');
       }
     }
 
     // 3. User lookup
-    let user = await this.usersService.findById(payload.userId);
-    if (!user) {
-      user = await this.suppliersService.findOne(payload.userId);
-      if (!user) {
+    let allUserData: UserResponse | Supplier | null =
+      await this.usersService.findById(payload.userId);
+    if (!allUserData) {
+      allUserData = await this.suppliersService.findOne(payload.userId);
+      if (!allUserData) {
         throw new UnauthorizedException('User not found');
       }
     }
 
     // 4. Return user info and token flag
     return {
-      userId: payload._id,
+      userData: allUserData,
+      userId: payload.userId,
       email: payload.email,
       role: payload.role,
       newToken: newTokenFlag ? newToken : null,

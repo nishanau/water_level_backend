@@ -16,11 +16,15 @@ import { RescheduleOrderDto } from './dto/reschedule-order.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { UsersService } from '../users/users.service';
 
 @Controller('orders')
 @UseGuards(JwtAuthGuard)
 export class OrdersController {
-  constructor(private readonly ordersService: OrdersService) {}
+  constructor(
+    private readonly ordersService: OrdersService,
+    private readonly userService: UsersService,
+  ) {}
 
   @Post()
   create(@Body() createOrderDto: CreateOrderDto, @Req() req) {
@@ -28,9 +32,39 @@ export class OrdersController {
   }
 
   @Get()
-  findAll(@Req() req, @Res({ passthrough: true }) res: Response,) {
-    
-    return this.ordersService.findAll(req.user.userId, req.user.role);
+  @UseGuards(JwtAuthGuard)
+  async findAll(@Req() req, @Res({ passthrough: true }) res: Response) {
+    const orders = await this.ordersService.findAll(
+      req.user.userId,
+      req.user.role,
+    );
+
+    console.log('Orders', orders);
+    const userIds = [
+      ...new Set(orders.map((order) => order.userId.toString())),
+    ];
+    const customerResponse = await Promise.allSettled(
+      userIds.map((userId) => this.userService.findById(userId)),
+    );
+    const customers = customerResponse
+      .filter((result) => result.status === 'fulfilled')
+      .map((result) => result.value);
+    // Build a map for quick lookup (userId -> customer)
+    const customerMap = new Map(
+      customers
+        .filter((customer) => customer !== null)
+        .map((customer) => [customer._id.toString(), customer]),
+    );
+
+    // Combine each order with its customer details
+    const orderResponse = orders.map((order) => ({
+      ...order,
+      customer: customerMap.get(order.userId.toString()) || null,
+    }));
+
+    console.log('Order Response', orderResponse);
+
+    return orderResponse;
   }
 
   @Get(':id')
@@ -38,17 +72,18 @@ export class OrdersController {
     return this.ordersService.findOne(id, req.user.userId, req.user.role);
   }
 
-  @Patch(':id/status')
+  @Patch(':id')
   @UseGuards(RolesGuard)
   @Roles('supplier', 'admin')
-  updateStatus(
+  @UseGuards(JwtAuthGuard)
+  async update(
     @Param('id') id: string,
-    @Body() updateOrderStatusDto: UpdateOrderStatusDto,
+    @Body() updateFields: Record<string, any>,
     @Req() req,
   ) {
-    return this.ordersService.updateStatus(
+    return this.ordersService.updateAnyField(
       id,
-      updateOrderStatusDto,
+      updateFields,
       req.user.userId,
       req.user.role,
     );

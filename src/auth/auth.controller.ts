@@ -57,7 +57,7 @@ export class AuthController {
         httpOnly: true,
         sameSite: 'lax',
         // secure: true, // Uncomment if using HTTPS
-        maxAge: 60 * 60 * 1000, // 1 hour
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       });
       res.cookie('refresh_token', refresh_token, {
         httpOnly: true,
@@ -65,7 +65,6 @@ export class AuthController {
         // secure: true, // Uncomment if using HTTPS
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       });
-      console.log('Set-Cookie headers:', res.getHeaders()['set-cookie']);
 
       return { user };
     }
@@ -115,41 +114,21 @@ export class AuthController {
     return { message: 'Logged out successfully' };
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get('me')
-  async getProfile(@Req() req, @Res({ passthrough: true }) res: Response) {
-    // Try to get token from Authorization header or cookies
-    let token = req.headers.authorization?.split(' ')[1];
-    let refreshToken = req.cookies['refresh_token'] || null;
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    if (!token && req.cookies && req.cookies['access_token']) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-      token = req.cookies['access_token'];
-    }
-
-    if (!token && !refreshToken) {
-      throw new UnauthorizedException('No token provided');
-    }
-    if (!token && refreshToken) {
-      token = await this.authService.refreshToken(refreshToken);
-      token = token.access_token; // Assuming refreshToken returns an object with access_token
-    }
-
-    try {
-      // Verify token
-      const payload = await this.authService.verifyToken(token);
-      const user = this.authService.getProfile(payload.userId, payload.email);
+  getProfile(@Req() req, @Res({ passthrough: true }) res: Response) {
+    const user = req.user.userData;
+    if (req.user.newTokenFlag) {
+      const token = req.user.newToken;
       res.cookie('access_token', token, {
         httpOnly: true,
         sameSite: 'lax',
         // secure: true, // Uncomment if using HTTPS
-        maxAge: 60 * 60 * 1000, // 1 hour
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       });
-
-      // Fetch user profile using payload.sub or payload.userId
-      return user;
-    } catch {
-      throw new UnauthorizedException('Invalid or expired token');
     }
+
+    return user;
   }
 
   // @Post('check-password')

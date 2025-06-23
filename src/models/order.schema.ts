@@ -20,6 +20,30 @@ export class StatusHistory {
   notes: string;
 }
 
+@Schema()
+export class InvoiceFile {
+  @Prop({ required: true })
+  fileName: string;
+
+  @Prop({ required: true })
+  filePath: string;
+
+  @Prop({ required: true })
+  downloadURL: string;
+
+  @Prop()
+  contentType: string;
+
+  @Prop()
+  size: number;
+
+  @Prop({ default: Date.now })
+  uploadedAt: Date;
+
+  @Prop({ default: false })
+  isPublic: boolean;
+}
+
 @Schema({ timestamps: true })
 export class Order {
   @Prop({ required: true, unique: true })
@@ -71,6 +95,9 @@ export class Order {
 
   @Prop()
   invoiceNumber: string;
+
+  @Prop({ type: InvoiceFile })
+  invoice: InvoiceFile;
 
   @Prop({
     enum: ['pending', 'paid', 'failed', 'refunded'],
