@@ -40,6 +40,30 @@ export class Review {
 }
 
 @Schema()
+export class FileData {
+  @Prop({ required: true })
+  fileName: string;
+
+  @Prop({ required: true })
+  filePath: string;
+
+  @Prop({ required: true })
+  contentType: string;
+
+  @Prop({ required: true })
+  downloadURL: string;
+
+  @Prop({ default: true })
+  isPublic: boolean;
+
+  @Prop({ default: Date.now })
+  uploadedAt: Date;
+
+  @Prop()
+  size: number;
+}
+
+@Schema()
 export class Supplier extends Document {
   @Prop({ required: true })
   firstName: string;
@@ -66,8 +90,8 @@ export class Supplier extends Document {
   @Prop()
   company: string;
 
-  @Prop()
-  logo: string;
+  @Prop({ type: FileData })
+  logo: FileData;
 
   @Prop({ type: [ServiceArea], default: [] })
   serviceAreas: ServiceArea[];

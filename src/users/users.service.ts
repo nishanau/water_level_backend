@@ -92,6 +92,36 @@ export class UsersService {
     }
   }
 
+  async findbyIdWithPassword(
+    id: string,
+  ): Promise<UserDocument | null> {
+    try {
+      if (!id.match(/^[0-9a-fA-F]{24}$/)) {
+        throw new BadRequestException(`Invalid user ID format: ${id}`);
+      }
+
+      const user = await this.userModel.findById(id, '+password').exec();
+      if (!user) {
+        return null; // Return null if user not found
+      }
+
+      return user;
+    } catch (error: unknown) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ) {
+        throw error;
+      }
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error occurred';
+      throw new InternalServerErrorException(
+        `Failed to find user with ID ${id}`,
+        errorMessage,
+      );
+    }
+  }
+
   async findByEmail(email: string): Promise<UserDocument | null> {
     try {
       const user = await this.userModel.findOne({ email }).exec();

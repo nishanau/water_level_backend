@@ -42,10 +42,11 @@ export class AuthService {
     password: string,
   ): Promise<UserResponse | SupplierResponse | null> {
     const user = await this.usersService.findByEmail(email.trim());
-
+    console.log(`User found: ${user ? 'Yes' : 'No'}`);
     if (!user) {
       const supplier = await this.supplierService.findByEmail(email.trim());
-
+      console.log(`Supplier found: ${supplier ? 'Yes' : 'No'}`);
+      // If supplier is
       if (supplier) {
         const isPasswordValid = await bcrypt.compare(
           password,
@@ -196,6 +197,61 @@ export class AuthService {
       password: string;
     };
     return result;
+  }
+
+  async updatePassword(
+    user,
+    updatePasswordDto: {
+      oldPassword: string;
+      newPassword: string;
+    },
+  ): Promise<{ message: string }> {
+    if (user.role === 'supplier') {
+      // Update supplier password
+      const supplier = await this.supplierService.findById(user._id);
+      if (!supplier) {
+        throw new NotFoundException('Supplier not found');
+      }
+      const isMatch = await bcrypt.compare(
+        updatePasswordDto.oldPassword,
+        supplier.password,
+      );
+      if (!isMatch) {
+        throw new BadRequestException('Old password is incorrect');
+      }
+
+      const salt = await bcrypt.genSalt();
+      const hashedPassword = await bcrypt.hash(
+        updatePasswordDto.newPassword,
+        salt,
+      );
+      supplier.password = hashedPassword;
+      await supplier.save();
+    } else {
+      // Update user password
+      const customer = await this.usersService.findbyIdWithPassword(user._id);
+      if (!customer) {
+        throw new NotFoundException('User not found');
+      }
+      const isMatch = await bcrypt.compare(
+        updatePasswordDto.oldPassword,
+        customer.password,
+      );
+      if (!isMatch) {
+        throw new BadRequestException('Old password is incorrect');
+      }
+
+      const salt = await bcrypt.genSalt();
+      const hashedPassword = await bcrypt.hash(
+        updatePasswordDto.newPassword,
+        salt,
+      );
+
+      customer.password = hashedPassword;
+      await customer.save();
+    }
+
+    return { message: 'Password updated successfully' };
   }
 
   // In auth.service.ts

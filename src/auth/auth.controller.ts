@@ -17,7 +17,6 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { Res, Req } from '@nestjs/common';
 import { Response } from 'express';
 import { UserResponse } from './types/auth.types';
-import { ref } from 'process';
 
 @Controller('auth')
 export class AuthController {
@@ -69,6 +68,19 @@ export class AuthController {
       return { user };
     }
     return { user, access_token, refresh_token };
+  }
+
+  @Post('change-password')
+  @UseGuards(JwtAuthGuard)
+  updatePassword(
+    @Req() req,
+    @Body() updatePasswordDto: { oldPassword: string; newPassword: string },
+  ) {
+    console.log('user', req.user.userData);
+    return this.authService.updatePassword(
+      req.user.userData,
+      updatePasswordDto,
+    );
   }
 
   @Get('refresh-token')

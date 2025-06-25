@@ -8,6 +8,7 @@ import {
   Delete,
   Query,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import { SuppliersService } from './suppliers.service';
 import { CreateSupplierDto } from './dto/create-supplier.dto';
@@ -48,14 +49,11 @@ export class SuppliersController {
     return this.suppliersService.findOne(id);
   }
 
-  @Patch(':id')
+  @Patch()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin', 'supplier')
-  update(
-    @Param('id') id: string,
-    @Body() updateSupplierDto: UpdateSupplierDto,
-  ) {
-    return this.suppliersService.update(id, updateSupplierDto);
+  update(@Req() req, @Body() updateSupplierDto: UpdateSupplierDto) {
+    return this.suppliersService.update(req.user.userId, updateSupplierDto);
   }
 
   @Delete(':id')

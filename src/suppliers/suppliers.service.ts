@@ -6,16 +6,15 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Supplier } from '../models/supplier.schema';
+import { User } from '../models/user.schema';
 import { CreateSupplierDto } from './dto/create-supplier.dto';
 import { UpdateSupplierDto } from './dto/update-supplier.dto';
 import * as bcrypt from 'bcrypt';
-import { SupplierResponse } from 'src/auth/types/auth.types';
-import { Types } from 'mongoose';
-
 @Injectable()
 export class SuppliersService {
   constructor(
     @InjectModel(Supplier.name) private supplierModel: Model<Supplier>,
+    @InjectModel(User.name) private userModel: Model<User>,
   ) {}
 
   async create(createSupplierDto: CreateSupplierDto): Promise<Supplier> {
@@ -63,6 +62,14 @@ export class SuppliersService {
     return supplier;
   }
 
+  async findById(id: string): Promise<Supplier | null> {
+    const supplier = await this.supplierModel.findById(id).exec();
+    if (!supplier) {
+      throw new NotFoundException(`Supplier with ID ${id} not found`);
+    }
+    return supplier;
+  }
+
   async findByEmail(email: string): Promise<Supplier | null> {
     const supplier = await this.supplierModel.findOne({ email }).lean();
 
@@ -76,19 +83,41 @@ export class SuppliersService {
     id: string,
     updateSupplierDto: UpdateSupplierDto,
   ): Promise<Supplier | null> {
-    // If password is provided, hash it
-    if (updateSupplierDto.password) {
-      const salt = await bcrypt.genSalt();
-      updateSupplierDto.password = await bcrypt.hash(
-        updateSupplierDto.password,
-        salt,
-      );
+    // Clone the DTO to avoid mutating the original
+    const updateData = { ...updateSupplierDto };
+
+    // Check for email uniqueness if email is being updated
+    if (updateData.email) {
+      // Check in suppliers
+      const existingSupplier = await this.supplierModel.findOne({
+        email: updateData.email,
+        _id: { $ne: id },
+      });
+      if (existingSupplier) {
+        throw new ConflictException('Email already exists.');
+      }
+
+      // Check in users
+      const existingUser = await this.userModel.findOne({
+        email: updateData.email,
+      });
+      if (existingUser) {
+        throw new ConflictException('Email already exists.');
+      }
+    }
+
+    // Remove password and company fields if present
+    if ('password' in updateData) {
+      delete updateData.password;
+    }
+    if ('company' in updateData) {
+      delete updateData.company;
     }
 
     const updatedSupplier = await this.supplierModel
       .findByIdAndUpdate(
         id,
-        { $set: updateSupplierDto },
+        { $set: updateData },
         { new: true, runValidators: true },
       )
       .select('-password');
