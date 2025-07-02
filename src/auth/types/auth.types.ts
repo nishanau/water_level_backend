@@ -47,10 +47,19 @@ export interface PricingTier {
 }
 
 export interface Review {
-  userId: Types.ObjectId;
+  userId: string | Types.ObjectId;
   rating: number;
   comment?: string;
   date: Date;
+}
+export interface FileData {
+  fileName: string;
+  filePath: string;
+  contentType: string;
+  downloadURL: string;
+  isPublic?: boolean;
+  uploadedAt?: Date;
+  size?: number;
 }
 
 export interface SupplierResponse {
@@ -61,7 +70,7 @@ export interface SupplierResponse {
   phoneNumber?: string;
   role: string;
   company?: string;
-  logo?: string;
+  logo?: FileData;
   serviceAreas: ServiceArea[];
   pricing: PricingTier[];
   avgResponseTime: number;
@@ -69,6 +78,7 @@ export interface SupplierResponse {
   reviews: Review[];
   active: boolean;
 }
+
 export interface Payload {
   userId: string | Types.ObjectId;
   email: string;

@@ -6,6 +6,11 @@ import {
   IsOptional,
   IsEnum,
   ValidateNested,
+  IsBoolean,
+  IsNumber,
+  Min,
+  Max,
+  IsDate,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 
@@ -16,11 +21,15 @@ export class AddressDto {
 
   @IsOptional()
   @IsString()
+  street2?: string;
+
+  @IsOptional()
+  @IsString()
   city?: string;
 
   @IsOptional()
   @IsString()
-  state?: string;
+  state: string;
 
   @IsOptional()
   @IsString()
@@ -46,6 +55,39 @@ export class NotificationPreferencesDto {
 
   @IsOptional()
   sms?: boolean;
+}
+
+export class TanksDto {
+  @IsNotEmpty()
+  @Min(0)
+  capacity: number;
+
+  @IsOptional()
+  @IsBoolean()
+  @Min(0)
+  avgDailyUsage?: number;
+
+  @IsNotEmpty()
+  @Min(0)
+  @Max(100)
+  lowWaterThreshold?: number;
+
+  @IsNotEmpty()
+  deviceId: string;
+
+  @IsOptional()
+  @IsDate()
+  @Type(() => Date)
+  installedDate?: Date;
+
+  @IsOptional()
+  @IsDate()
+  @Type(() => Date)
+  lastMaintenance?: Date;
+
+  @IsOptional()
+  @IsNumber()
+  currentWaterLevel: number;
 }
 
 export class CreateUserDto {
@@ -93,4 +135,7 @@ export class CreateUserDto {
 
   @IsOptional()
   preferredSupplier?: string;
+
+  @IsOptional()
+  tanks?: TanksDto[];
 }

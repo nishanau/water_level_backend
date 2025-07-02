@@ -9,6 +9,9 @@ export class Address {
   street: string;
 
   @Prop()
+  street2: string;
+
+  @Prop()
   city: string;
 
   @Prop()
@@ -34,6 +37,27 @@ export class NotificationPreferences {
 
   @Prop({ default: false })
   sms: boolean;
+}
+
+@Schema({ timestamps: true })
+export class Tanks {
+  @Prop({ required: true })
+  capacity: number;
+
+  @Prop({ default: 0 })
+  avgDailyUsage: number;
+
+  @Prop({ required: true, min: 0, max: 100 })
+  lowWaterThreshold: number;
+
+  @Prop({ required: true })
+  deviceId: string;
+
+  @Prop()
+  lastReadingDate: Date;
+
+  @Prop()
+  lastReadingValue: number;
 }
 
 @Schema({ timestamps: true })
@@ -71,6 +95,21 @@ export class User {
 
   @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Supplier' })
   preferredSupplier: MongooseSchema.Types.ObjectId;
+
+  @Prop({ default: false })
+  isEmailVerified: boolean;
+
+  @Prop()
+  emailVerificationToken: string;
+
+  @Prop()
+  resetPasswordCode: string;
+
+  @Prop()
+  resetPasswordCodeExpiry: Date;
+
+  @Prop({ type: [Tanks] })
+  tanks: Tanks[];
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

@@ -63,12 +63,35 @@ export class FileData {
   size: number;
 }
 
+@Schema({ timestamps: true })
+export class SupplierAddress {
+  @Prop()
+  street1: string;
+
+  @Prop()
+  street2: string;
+
+  @Prop()
+  city: string;
+
+  @Prop()
+  state: string;
+
+  @Prop()
+  postalCode: string;
+
+  @Prop()
+  country: string;
+
+  @Prop({ type: { latitude: Number, longitude: Number } })
+  coordinates: { latitude: number; longitude: number };
+}
 @Schema()
 export class Supplier extends Document {
-  @Prop({ required: true })
+  @Prop()
   firstName: string;
 
-  @Prop({ required: true })
+  @Prop()
   lastName: string;
 
   @Prop({ required: true, unique: true })
@@ -79,6 +102,9 @@ export class Supplier extends Document {
 
   @Prop()
   phoneNumber: string;
+
+  @Prop({ type: SupplierAddress })
+  address: SupplierAddress;
 
   @Prop({
     required: true,
@@ -110,6 +136,18 @@ export class Supplier extends Document {
 
   @Prop({ default: true })
   active: boolean;
+
+  @Prop({ default: false })
+  isEmailVerified: boolean;
+
+  @Prop()
+  emailVerificationToken: string;
+
+  @Prop()
+  resetPasswordCode: string;
+
+  @Prop()
+  resetPasswordCodeExpiry: Date;
 }
 
 export const SupplierSchema = SchemaFactory.createForClass(Supplier);

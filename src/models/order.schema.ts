@@ -79,6 +79,7 @@ export class Order {
       'in_transit',
       'delivered',
       'cancelled',
+      'completed',
     ],
     default: 'placed',
   })

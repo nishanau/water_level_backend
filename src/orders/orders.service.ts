@@ -207,6 +207,7 @@ export class OrdersService {
       const statusHistoryEntry: Partial<StatusHistory> = {
         status: 'cancelled',
         timestamp: new Date(),
+        notes: `Order cancelled by user`,
       };
       // Convert userId string to ObjectId for the updatedBy field
       if (userId) {

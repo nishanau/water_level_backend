@@ -16,24 +16,17 @@ export class CreateTankDto {
   @Min(0)
   capacity: number;
 
-  @IsNotEmpty()
+  @IsOptional()
+  @IsBoolean()
   @IsNumber()
   @Min(0)
   avgDailyUsage?: number;
 
-  @IsOptional()
+  @IsNotEmpty()
   @IsNumber()
   @Min(0)
   @Max(100)
   lowWaterThreshold?: number;
-
-  @IsOptional()
-  @IsBoolean()
-  autoOrder?: boolean;
-
-  @IsOptional()
-  @IsMongoId()
-  preferredSupplier?: string;
 
   @IsNotEmpty()
   deviceId: string;
@@ -48,7 +41,7 @@ export class CreateTankDto {
   @Type(() => Date)
   lastMaintenance?: Date;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsNumber()
   currentWaterLevel: number;
 }

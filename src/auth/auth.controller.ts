@@ -16,16 +16,35 @@ import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { Res, Req } from '@nestjs/common';
 import { Response } from 'express';
-import { UserResponse } from './types/auth.types';
+
+import { CreateSupplierDto } from '../suppliers/dto/create-supplier.dto';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Post('register')
-  async register(@Body() createUserDto: CreateUserDto): Promise<UserResponse> {
+  @Post('register-user')
+  async registerUser(
+    @Body() createUserDto: CreateUserDto,
+  ): Promise<{ success: boolean; message: string }> {
     console.log('Registering user:', createUserDto);
     return this.authService.register(createUserDto);
+  }
+
+  @Post('register-supplier')
+  async registerSupplier(
+    @Body() createSupplierDto: CreateSupplierDto,
+  ): Promise<{ success: boolean; message: string }> {
+    console.log('Registering supplier:', createSupplierDto);
+    return this.authService.register(createSupplierDto);
+  }
+
+  @Post('verify-email')
+  async verifyEmail(
+    @Body() body: { email: string; token: string },
+  ): Promise<{ success: boolean; message: string }> {
+    const { email, token } = body;
+    return this.authService.verifyEmail(email, token);
   }
 
   @Post('login')
@@ -34,12 +53,17 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    console.log('Attempting login for email:', loginDto.email);
+    console.log(
+      'Attempting login for email:',
+      loginDto.email,
+      loginDto.password,
+    );
     const userExists = await this.authService.validateUser(
       loginDto.email,
       loginDto.password,
       // Default to 'user' if no role is provided
     );
+    console.log('User exists:', userExists);
 
     if (!userExists) {
       console.error('Login failed: Invalid email or password');
@@ -141,6 +165,28 @@ export class AuthController {
     }
 
     return user;
+  }
+
+  @Post('forgot-password')
+  async sendForgotPasswordCode(@Body('email') email: string) {
+    return await this.authService.sendForgotPasswordCode(email);
+  }
+
+  @Post('verify-reset-code')
+  async verifyResetCode(
+    @Body('email') email: string,
+    @Body('code') code: string,
+  ) {
+    return await this.authService.verifyResetCode(email, code);
+  }
+
+  @Post('reset-password')
+  async resetPassword(
+    @Body('email') email: string,
+    @Body('code') code: string,
+    @Body('newPassword') newPassword: string,
+  ) {
+    return await this.authService.resetPassword(email, code, newPassword);
   }
 
   // @Post('check-password')

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import {
   BadRequestException,
   ConflictException,
@@ -20,9 +21,24 @@ import { Order } from '../models/order.schema';
 import { Notification } from '../models/notification.schema';
 import { PaymentMethod } from '../models/payment-method.schema';
 import { Types } from 'mongoose';
+import { CreateSupplierDto } from 'src/suppliers/dto/create-supplier.dto';
+import * as nodemailer from 'nodemailer';
+import { UserDocument } from 'src/models';
+import { SupplierDocument } from 'src/models/supplier.schema';
 
 @Injectable()
 export class AuthService {
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+  private transporter = nodemailer.createTransport({
+    host: 'smtp.gmail.com', // Replace with your SMTP server
+    port: 465,
+    secure: true,
+    auth: {
+      user: process.env.GMAIL_USER,
+      pass: process.env.GMAIL_PASS,
+    },
+  });
+
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
@@ -48,6 +64,8 @@ export class AuthService {
       console.log(`Supplier found: ${supplier ? 'Yes' : 'No'}`);
       // If supplier is
       if (supplier) {
+        console.log(`given password: ${password}`);
+        console.log(`hashed password: ${supplier.password}`);
         const isPasswordValid = await bcrypt.compare(
           password,
           supplier.password,
@@ -102,9 +120,7 @@ export class AuthService {
 
     if (user.role === 'customer') {
       // Fetch related data for the customer
-      const tanks = await this.tankModel
-        .find({ userId: user._id })
-        .select('_id');
+
       const orders = await this.orderModel
         .find({ userId: user._id })
         .select('_id');
@@ -115,7 +131,6 @@ export class AuthService {
       return {
         user: {
           ...user,
-          tankIds: tanks.map((tank) => tank._id),
           orderIds: orders.map((order) => order._id),
           paymentMethodIds: paymentMethods.map((method) => method._id),
         },
@@ -163,40 +178,118 @@ export class AuthService {
     }
   }
 
-  async register(userData: CreateUserDto): Promise<UserResponse> {
-    // Hash the password
-
+  async register(
+    userData: CreateUserDto | CreateSupplierDto,
+  ): Promise<{ success: boolean; message: string }> {
+    // Stronger validation
     if (
       !userData.password ||
-      userData.password.trim() === '' ||
+      userData.password.trim().length < 8 ||
       !userData.email ||
-      !userData.firstName ||
-      !userData.lastName ||
-      !userData.role ||
-      userData.password.trim().length === 0
+      !userData.role
     ) {
-      throw new BadRequestException('All fields are required');
+      throw new BadRequestException(
+        'All fields are required and password must be at least 8 characters.',
+      );
     }
-    const salt = await bcrypt.genSalt();
-    const hashedPassword = await bcrypt.hash(userData.password, salt);
 
-    // Create a new user
-    const existingUser = await this.usersService.findByEmail(userData.email);
+    // Email format validation (basic)
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(userData.email)) {
+      throw new BadRequestException('Invalid email format.');
+    }
+
+    // // Optional: Phone number format validation (basic)
+    // if ('phoneNumber' in userData && userData.phoneNumber) {
+    //   const phoneRegex = /^[0-9+\-\s()]{7,20}$/;
+    //   if (!phoneRegex.test(userData.phoneNumber)) {
+    //     throw new BadRequestException('Invalid phone number format.');
+    //   }
+    // }
+
+    // Check for existing user or supplier
+    let existingUser: any = await this.usersService.findByEmail(userData.email);
+    if (!existingUser) {
+      existingUser = await this.supplierService.findByEmail(userData.email);
+    }
     if (existingUser) {
       throw new ConflictException('Email already exists');
     }
 
-    const createdUser = await this.usersService.create({
-      ...userData,
-      password: hashedPassword,
-    });
+    // Hash the password
+    const salt = await bcrypt.genSalt();
+    const hashedPassword = await bcrypt.hash(userData.password, salt);
+    let createdUser;
+    // Create user or supplier
+    try {
+      if (userData.role === 'customer') {
+        createdUser = await this.usersService.create({
+          ...userData,
+          password: hashedPassword,
+        });
+      } else if (userData.role === 'supplier') {
+        if (!('company' in userData) || !userData['company']) {
+          throw new BadRequestException('Company is required for suppliers');
+        }
+        await this.supplierService.create({
+          ...userData,
+          password: hashedPassword,
+        });
+      } else {
+        throw new BadRequestException('Invalid user role');
+      }
 
-    const userObject = createdUser.toJSON ? createdUser.toJSON() : createdUser;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password: _pass, ...result } = userObject as UserResponse & {
-      password: string;
-    };
-    return result;
+      // Email verification stub (implement actual email sending here)
+      await this.sendVerificationEmail(
+        userData.email,
+        createdUser.emailVerificationToken,
+      );
+
+      // Log registration
+      console.log(`User registered: ${userData.email} (${userData.role})`);
+
+      return {
+        success: true,
+        message: 'Registration successful. Please verify your email.',
+      };
+    } catch (error) {
+      // Log error for auditing
+      console.error('Registration failed:', error);
+
+      // Rethrow known HTTP exceptions
+      if (
+        error instanceof BadRequestException ||
+        error instanceof ConflictException
+      ) {
+        throw error;
+      }
+      // Handle any other errors
+      throw new BadRequestException('Registration failed. Please try again.');
+    }
+  }
+  async verifyEmail(
+    email: string,
+    token: string,
+  ): Promise<{ success: boolean; message: string }> {
+    // Check if user exists
+    let user: UserDocument | SupplierDocument | null =
+      await this.usersService.findByEmail(email);
+    if (!user) {
+      user = await this.supplierService.findByEmail(email);
+    }
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    if (user.isEmailVerified) {
+      return { success: true, message: 'Email already verified.' };
+    }
+    if (user.emailVerificationToken !== token) {
+      throw new BadRequestException('Invalid or expired verification token');
+    }
+    user.isEmailVerified = true;
+    user.emailVerificationToken = '';
+    await user.save();
+    return { success: true, message: 'Email verified successfully.' };
   }
 
   async updatePassword(
@@ -318,27 +411,104 @@ export class AuthService {
     return bcrypt.compare(password, fetchedPassword);
   }
 
-  // logout(token: string): Promise<void> {
-  //   // Add the token to invalidated tokens set
-  //   this.invalidatedTokens.add(token);
+  async sendVerificationEmail(to: string, verificationToken: string) {
+    const verificationUrl = `http://localhost:3001/verify-email?token=${verificationToken}&email=${encodeURIComponent(to)}`;
 
-  //   // Optional: Clean up old tokens periodically
-  //   //this.cleanupInvalidatedTokens();
+    const mailOptions = {
+      from: '"AquaPulse" <aquapulse69@email.com>',
+      to,
+      subject: 'Verify your email address',
+      html: `
+        <h3>Welcome!</h3>
+        <p>Please verify your email address by clicking the link below:</p>
+        <a href="${verificationUrl}">Verify Email</a>
+        <p>If you did not request this, please ignore this email.</p>
+      `,
+    };
 
-  //   return Promise.resolve();
-  // }
+    await this.transporter.sendMail(mailOptions);
+  }
 
-  // isTokenInvalid(token: string): boolean {
-  //   return this.invalidatedTokens.has(token);
-  // }
+  async sendForgotPasswordCode(email: string) {
+    // 1. Check if user exists (customer or supplier)
+    let user: any = await this.usersService.findByEmail(email);
+    let isSupplier = false;
+    if (!user) {
+      user = await this.supplierService.findByEmail(email);
+      isSupplier = true;
+    }
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
 
-  // private cleanupInvalidatedTokens() {
-  //   // Clean up tokens older than 24 hours
-  //   setTimeout(
-  //     () => {
-  //       this.invalidatedTokens.clear();
-  //     },
-  //     24 * 60 * 60 * 1000,
-  //   );
-  // }
+    // 2. Generate code and expiry (10 min)
+    const code = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit code
+    const expiry = new Date(Date.now() + 10 * 60 * 1000);
+
+    user.resetPasswordCode = code;
+    user.resetPasswordCodeExpiry = expiry;
+    await user.save();
+
+    // 3. Send code to user's email
+    await this.transporter.sendMail({
+      from: '"AquaPulse" <aquapulse69@email.com>',
+      to: email,
+      subject: 'AquaPulse Password Reset Code',
+      html: `
+        <h3>Password Reset Request</h3>
+        <p>Your password reset code is: <b>${code}</b></p>
+        <p>This code will expire in 10 minutes.</p>
+        <p>If you did not request this, please ignore this email.</p>
+      `,
+    });
+
+    // 4. Return { success: true }
+    return { success: true };
+  }
+
+  async verifyResetCode(email: string, code: string) {
+    // 1. Find user (customer or supplier)
+    let user: any = await this.usersService.findByEmail(email);
+    if (!user) user = await this.supplierService.findByEmail(email);
+    if (!user) return { success: false, message: 'User not found' };
+
+    // 2. Check code and expiry
+    if (
+      !user.resetPasswordCode ||
+      !user.resetPasswordCodeExpiry ||
+      user.resetPasswordCode !== code ||
+      new Date(user.resetPasswordCodeExpiry) < new Date()
+    ) {
+      return { success: false, message: 'Invalid or expired code' };
+    }
+    return { success: true };
+  }
+
+  async resetPassword(email: string, code: string, newPassword: string) {
+    // 1. Find user (customer or supplier)
+    let user: any = await this.usersService.findByEmail(email);
+    if (!user) user = await this.supplierService.findByEmail(email);
+    if (!user) throw new NotFoundException('User not found');
+
+    // 2. Verify code and expiry
+    if (
+      !user.resetPasswordCode ||
+      !user.resetPasswordCodeExpiry ||
+      user.resetPasswordCode !== code ||
+      new Date(user.resetPasswordCodeExpiry) < new Date()
+    ) {
+      throw new BadRequestException('Invalid or expired code');
+    }
+
+    // 3. Hash and update password
+    const salt = await bcrypt.genSalt();
+    user.password = await bcrypt.hash(newPassword, salt);
+
+    // 4. Invalidate code
+    user.resetPasswordCode = undefined;
+    user.resetPasswordCodeExpiry = undefined;
+    await user.save();
+
+    return { success: true };
+  }
 }

@@ -11,12 +11,13 @@ import {
 } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
-import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { RescheduleOrderDto } from './dto/reschedule-order.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UsersService } from '../users/users.service';
+import { SuppliersService } from '../suppliers/suppliers.service';
+import { Types } from 'mongoose';
 
 @Controller('orders')
 @UseGuards(JwtAuthGuard)
@@ -24,6 +25,7 @@ export class OrdersController {
   constructor(
     private readonly ordersService: OrdersService,
     private readonly userService: UsersService,
+    private readonly suppliersService: SuppliersService,
   ) {}
 
   @Post()
@@ -38,33 +40,72 @@ export class OrdersController {
       req.user.userId,
       req.user.role,
     );
+    if (req.user.role === 'supplier') {
+      const userIds = [
+        ...new Set(orders.map((order) => order.userId.toString())),
+      ];
+      const customerResponse = await Promise.allSettled(
+        userIds.map((userId) => this.userService.findById(userId)),
+      );
+      const customers = customerResponse
+        .filter((result) => result.status === 'fulfilled')
+        .map((result) => result.value);
+      // Build a map for quick lookup (userId -> customer)
+      const customerMap = new Map(
+        customers
+          .filter((customer) => customer !== null)
+          .map((customer) => [customer._id.toString(), customer]),
+      );
 
-    console.log('Orders', orders);
-    const userIds = [
-      ...new Set(orders.map((order) => order.userId.toString())),
-    ];
-    const customerResponse = await Promise.allSettled(
-      userIds.map((userId) => this.userService.findById(userId)),
-    );
-    const customers = customerResponse
-      .filter((result) => result.status === 'fulfilled')
-      .map((result) => result.value);
-    // Build a map for quick lookup (userId -> customer)
-    const customerMap = new Map(
-      customers
-        .filter((customer) => customer !== null)
-        .map((customer) => [customer._id.toString(), customer]),
-    );
+      // Combine each order with its customer details
+      const orderResponse = orders.map((order) => ({
+        ...order,
+        customer: customerMap.get(order.userId.toString()) || null,
+      }));
 
-    // Combine each order with its customer details
-    const orderResponse = orders.map((order) => ({
-      ...order,
-      customer: customerMap.get(order.userId.toString()) || null,
-    }));
+      console.log('Order Response for supplier', orderResponse);
 
-    console.log('Order Response', orderResponse);
+      return orderResponse;
+    } else if (req.user.role === 'customer') {
+      // Get unique supplierIds from orders
+      const supplierIds = [
+        ...new Set(orders.map((order) => order.supplierId?.toString())),
+      ].filter(Boolean);
 
-    return orderResponse;
+      // Fetch supplier details using findOne (returns lean object, no password)
+      const supplierResponses = await Promise.allSettled(
+        supplierIds.map((supplierId) =>
+          this.suppliersService.findOne(supplierId),
+        ),
+      );
+      const suppliers = supplierResponses
+        .filter((result) => result.status === 'fulfilled')
+        .map((result) => result.value);
+
+      // Build a map for quick lookup (supplierId -> supplier)
+      const supplierMap = new Map(
+        suppliers
+          .filter((supplier) => supplier !== null)
+          .map((supplier) => [
+            typeof supplier._id === 'string'
+              ? supplier._id
+              : (supplier._id as Types.ObjectId).toString(),
+            supplier,
+          ]),
+      );
+      // Combine each order with its supplier details
+      const orderResponse = orders.map((order) => ({
+        ...order,
+        supplier:
+          supplierMap.get(
+            typeof order.supplierId === 'string'
+              ? order.supplierId
+              : order.supplierId.toString(),
+          ) || null,
+      }));
+
+      return orderResponse;
+    }
   }
 
   @Get(':id')

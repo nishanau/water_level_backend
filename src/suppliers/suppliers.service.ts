@@ -5,11 +5,13 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Supplier } from '../models/supplier.schema';
+import { Supplier, SupplierDocument } from '../models/supplier.schema';
 import { User } from '../models/user.schema';
 import { CreateSupplierDto } from './dto/create-supplier.dto';
 import { UpdateSupplierDto } from './dto/update-supplier.dto';
-import * as bcrypt from 'bcrypt';
+import { SupplierResponse } from 'src/auth/types/auth.types';
+import { randomBytes } from 'crypto';
+import Types from 'mongoose';
 @Injectable()
 export class SuppliersService {
   constructor(
@@ -17,7 +19,9 @@ export class SuppliersService {
     @InjectModel(User.name) private userModel: Model<User>,
   ) {}
 
-  async create(createSupplierDto: CreateSupplierDto): Promise<Supplier> {
+  async create(
+    createSupplierDto: CreateSupplierDto,
+  ): Promise<SupplierResponse> {
     // Check if email exists
     const existingSupplier = await this.supplierModel
       .findOne({
@@ -29,20 +33,25 @@ export class SuppliersService {
       throw new ConflictException('Email already exists');
     }
 
-    // Hash password
-    const salt = await bcrypt.genSalt();
-    const hashedPassword = await bcrypt.hash(createSupplierDto.password, salt);
-    console.log(
-      `Creating supplier with email: ${createSupplierDto.email}, hashed password: ${hashedPassword}`,
-    );
     // Create supplier with role set to 'supplier'
     const createdSupplier = new this.supplierModel({
       ...createSupplierDto,
-      password: hashedPassword,
+      password: createSupplierDto.password,
       role: 'supplier',
     });
+    const verificationToken = randomBytes(32).toString('hex');
+    createdSupplier.emailVerificationToken = verificationToken;
+    const savedSupplier = await createdSupplier.save();
 
-    return createdSupplier.save();
+    return {
+      ...savedSupplier.toObject(),
+
+      _id: (savedSupplier._id as Types.ObjectId).toString(),
+      reviews: (savedSupplier.reviews || []).map((review: any) => ({
+        ...review,
+        userId: review.userId?.toString?.() ?? review.userId,
+      })),
+    };
   }
 
   async findAll(query: any = {}): Promise<Supplier[]> {
@@ -70,9 +79,8 @@ export class SuppliersService {
     return supplier;
   }
 
-  async findByEmail(email: string): Promise<Supplier | null> {
-    const supplier = await this.supplierModel.findOne({ email }).lean();
-
+  async findByEmail(email: string): Promise<SupplierDocument | null> {
+    const supplier = await this.supplierModel.findOne({ email }).exec();
     if (!supplier) {
       return null;
     }

@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
   Req,
+  BadRequestException,
 } from '@nestjs/common';
 import { SuppliersService } from './suppliers.service';
 import { CreateSupplierDto } from './dto/create-supplier.dto';
@@ -23,14 +24,15 @@ export class SuppliersController {
 
   @Post()
   async create(@Body() createSupplierDto: CreateSupplierDto) {
-    const supplier = await this.suppliersService.create(createSupplierDto);
-    return {
-      message: 'Supplier created successfully',
-      supplier: {
-        ...supplier.toObject(),
-        password: undefined,
-      },
-    };
+    try {
+      const supplier = await this.suppliersService.create(createSupplierDto);
+      return {
+        message: 'Supplier created successfully',
+        supplier,
+      };
+    } catch {
+      throw new BadRequestException('Failed to create supplier');
+    }
   }
 
   @Get()

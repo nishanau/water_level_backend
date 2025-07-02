@@ -12,15 +12,23 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import * as bcrypt from 'bcrypt';
 import { UserResponse } from 'src/auth/types/auth.types';
+import { Types } from 'mongoose';
+import { randomBytes } from 'crypto';
 
 @Injectable()
 export class UsersService {
   constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) {}
 
-  async create(createUserDto: CreateUserDto): Promise<UserDocument> {
+  async create(createUserDto: CreateUserDto): Promise<UserResponse> {
     try {
       const newUser = new this.userModel(createUserDto);
-      return await newUser.save();
+      const verificationToken = randomBytes(32).toString('hex');
+      newUser.emailVerificationToken = verificationToken;
+      const savedUser = await newUser.save();
+      return {
+        ...savedUser.toObject(),
+        _id: (savedUser._id as Types.ObjectId).toString(),
+      };
     } catch (error: unknown) {
       if (error instanceof MongooseError.ValidationError) {
         throw new BadRequestException(`Validation failed: ${error.message}`);
@@ -92,9 +100,7 @@ export class UsersService {
     }
   }
 
-  async findbyIdWithPassword(
-    id: string,
-  ): Promise<UserDocument | null> {
+  async findbyIdWithPassword(id: string): Promise<UserDocument | null> {
     try {
       if (!id.match(/^[0-9a-fA-F]{24}$/)) {
         throw new BadRequestException(`Invalid user ID format: ${id}`);
