@@ -58,17 +58,17 @@ export class SuppliersService {
     return this.supplierModel.find(query).select('-password').exec();
   }
 
-  async findOne(id: string): Promise<Supplier | null> {
+  async findOne(id: string): Promise<SupplierResponse> {
     const supplier = await this.supplierModel
       .findById(id)
       .select('-password')
-      .lean();
+      .exec();
 
     if (!supplier) {
       throw new NotFoundException(`Supplier with ID ${id} not found`);
     }
 
-    return supplier;
+    return supplier.toObject() as SupplierResponse;
   }
 
   async findById(id: string): Promise<Supplier | null> {

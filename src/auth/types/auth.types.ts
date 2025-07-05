@@ -1,83 +1,34 @@
 import { Types } from 'mongoose';
+import { User } from '../../models/user.schema';
+import { Supplier } from '../../models/supplier.schema';
 
-export interface UserResponse {
-  _id: string | Types.ObjectId;
-  firstName: string;
-  lastName: string;
-  email: string;
-  phoneNumber?: string;
-  role: string;
-  address?: {
-    street?: string;
-    city?: string;
-    state?: string;
-    postalCode?: string;
-    country?: string;
-    coordinates?: {
-      latitude: number;
-      longitude: number;
-    };
-  };
-  notificationPreferences?: {
-    push: boolean;
-    email: boolean;
-    sms: boolean;
-  };
+// Create UserResponse by extending User and omitting sensitive fields
+export type UserResponse = Omit<
+  User & { _id: string | Types.ObjectId },
+  'password'
+> & {
+  // Add references to related collections
   tankIds?: string[] | Types.ObjectId[];
   orderIds?: string[] | Types.ObjectId[];
   notificationIds?: string[] | Types.ObjectId[];
   paymentMethodIds?: string[] | Types.ObjectId[];
-}
+};
 
-export interface LoginResponse {
-  user: UserResponse;
+// Create SupplierResponse by extending Supplier and omitting sensitive fields
+export type SupplierResponse = Omit<
+  Supplier & { _id: string | Types.ObjectId },
+  'password'
+>;
+
+export type LoginResponse = {
   access_token: string;
   refresh_token: string;
-}
-
-export interface ServiceArea {
-  region: string;
-  postalCodes: string[];
-}
-
-export interface PricingTier {
-  minVolume: number;
-  maxVolume: number;
-  pricePerLiter: number;
-}
-
-export interface Review {
-  userId: string | Types.ObjectId;
-  rating: number;
-  comment?: string;
-  date: Date;
-}
-export interface FileData {
-  fileName: string;
-  filePath: string;
-  contentType: string;
-  downloadURL: string;
-  isPublic?: boolean;
-  uploadedAt?: Date;
-  size?: number;
-}
-
-export interface SupplierResponse {
-  _id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  phoneNumber?: string;
-  role: string;
-  company?: string;
-  logo?: FileData;
-  serviceAreas: ServiceArea[];
-  pricing: PricingTier[];
-  avgResponseTime: number;
-  rating: number;
-  reviews: Review[];
-  active: boolean;
-}
+  user: UserResponse | SupplierResponse;
+};
+export type RegisterResponse = {
+  success: boolean;
+  message: string;
+};
 
 export interface Payload {
   userId: string | Types.ObjectId;

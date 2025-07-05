@@ -25,8 +25,14 @@ export class UsersService {
       const verificationToken = randomBytes(32).toString('hex');
       newUser.emailVerificationToken = verificationToken;
       const savedUser = await newUser.save();
+
+      // Properly transform to UserResponse type by explicitly excluding sensitive fields
+      const userObject = savedUser.toObject();
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { password, ...userResponse } = userObject;
+
       return {
-        ...savedUser.toObject(),
+        ...userResponse,
         _id: (savedUser._id as Types.ObjectId).toString(),
       };
     } catch (error: unknown) {

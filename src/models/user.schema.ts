@@ -106,7 +106,7 @@ export class User {
   resetPasswordCode: string;
 
   @Prop()
-  resetPasswordCodeExpiry: Date;
+  resetPasswordCodeExpiry: Date | null;
 
   @Prop({ type: [Tanks] })
   tanks: Tanks[];

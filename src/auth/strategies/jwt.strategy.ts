@@ -6,9 +6,16 @@ import { UsersService } from '../../users/users.service';
 import { SuppliersService } from '../../suppliers/suppliers.service';
 import { Request } from 'express';
 import * as jwt from 'jsonwebtoken';
-import { UserResponse } from '../types/auth.types';
-import { Supplier } from 'src/models';
-import { Payload } from '../types/auth.types';
+import { UserResponse, Payload, SupplierResponse } from '../types/auth.types';
+
+export interface JwtStrategyResponse {
+  userData: UserResponse | SupplierResponse | null;
+  userId: string;
+  email: string;
+  role: string;
+  newToken: string | null;
+  newTokenFlag: boolean;
+}
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
@@ -33,7 +40,9 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       return authHeader.split(' ')[1];
     }
     // 2. If Authorization header is not present, check access_token cookie
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     if (req.cookies && req.cookies['access_token']) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access
       return req.cookies['access_token'];
     }
     // No token found
@@ -47,7 +56,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       this.configService.get<string>('JWT_REFRESH_SECRET') ||
       'super-secret-key';
     let token: string;
-    let payload: any = null;
+    let payload: Payload | null = null;
     let newToken: string | null = null;
     let newTokenFlag = false;
 
@@ -84,14 +93,17 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       }
     } else {
       // 2. Check access_token cookie
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       if (req.cookies && req.cookies['access_token']) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
         token = req.cookies['access_token'];
 
         try {
-          payload = jwt.verify(token, secret);
+          payload = jwt.verify(token, secret) as Payload;
         } catch {
           // Access token invalid/expired, try refresh_token cookie
-          const refreshToken = req.cookies['refresh_token'];
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+          const refreshToken = req.cookies['refresh_token'] as string;
 
           if (refreshToken) {
             try {
@@ -110,9 +122,13 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
               );
               newTokenFlag = true;
             } catch (e) {
+              const errorMessage =
+                e && typeof e === 'object' && 'message' in e
+                  ? String((e as { message?: unknown }).message)
+                  : undefined;
               throw new UnauthorizedException(
                 'Invalid or expired refresh token',
-                e.message,
+                errorMessage,
               );
             }
           } else {
@@ -121,12 +137,15 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
         }
       }
     }
+    if (!payload) {
+      throw new UnauthorizedException('Invalid token');
+    }
 
     // 3. User lookup
-    let allUserData: UserResponse | Supplier | null =
-      await this.usersService.findById(payload.userId);
+    let allUserData: UserResponse | SupplierResponse | null =
+      await this.usersService.findById(String(payload.userId));
     if (!allUserData) {
-      allUserData = await this.suppliersService.findOne(payload.userId);
+      allUserData = await this.suppliersService.findOne(String(payload.userId));
       if (!allUserData) {
         throw new UnauthorizedException('User not found');
       }
@@ -140,6 +159,6 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       role: payload.role,
       newToken: newTokenFlag ? newToken : null,
       newTokenFlag,
-    };
+    } as JwtStrategyResponse;
   }
 }

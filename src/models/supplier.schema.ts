@@ -147,7 +147,7 @@ export class Supplier extends Document {
   resetPasswordCode: string;
 
   @Prop()
-  resetPasswordCodeExpiry: Date;
+  resetPasswordCodeExpiry: Date | null;
 }
 
 export const SupplierSchema = SchemaFactory.createForClass(Supplier);
