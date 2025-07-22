@@ -8,6 +8,9 @@ import { Request } from 'express';
 import * as jwt from 'jsonwebtoken';
 import { UserResponse, Payload, SupplierResponse } from '../types/auth.types';
 
+/**
+ * Response structure returned by the JWT strategy's validate method
+ */
 export interface JwtStrategyResponse {
   userData: UserResponse | SupplierResponse | null;
   userId: string;
@@ -17,6 +20,15 @@ export interface JwtStrategyResponse {
   newTokenFlag: boolean;
 }
 
+/**
+ * JWT Authentication Strategy
+ *
+ * Handles authentication using JWT tokens from:
+ * - Authorization headers (Bearer token)
+ * - Cookies (access_token and refresh_token)
+ *
+ * Provides automatic token refresh when access tokens expire.
+ */
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   constructor(
@@ -33,6 +45,16 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     });
   }
 
+  /**
+   * Extracts JWT token from the request
+   *
+   * Checks for tokens in the following order:
+   * 1. Authorization header (Bearer token)
+   * 2. access_token cookie
+   *
+   * @param req - The Express request object
+   * @returns The extracted token or null if no token found
+   */
   static extractToken(req: Request): string | null {
     // 1. Check Authorization header for access token
     const authHeader = req.headers['authorization'];
@@ -49,6 +71,19 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     return null;
   }
 
+  /**
+   * Validates the JWT token and loads user data
+   *
+   * This method:
+   * 1. Verifies the access token
+   * 2. Falls back to refresh token if access token is expired
+   * 3. Generates a new access token if refresh token is valid
+   * 4. Loads the user or supplier data
+   *
+   * @param req - The Express request object
+   * @returns User data and token status information
+   * @throws UnauthorizedException if tokens are invalid or user not found
+   */
   async validate(req: Request) {
     const secret =
       this.configService.get<string>('JWT_SECRET') || 'super-secret-key';

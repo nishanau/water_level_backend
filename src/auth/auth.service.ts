@@ -87,7 +87,6 @@ export class AuthService {
         }
 
         const userObject = supplier.toJSON ? supplier.toJSON() : supplier;
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { password: _pass, ...result } =
           userObject as SupplierResponse & {
             password: string;
@@ -105,13 +104,18 @@ export class AuthService {
     }
 
     const userObject = user.toJSON ? user.toJSON() : user;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password: _pass, ...result } = userObject as UserResponse & {
       password: string;
     };
     return result;
   }
 
+  /**
+   * Logs in a user or supplier and returns access and refresh tokens
+   *
+   * @param user - User or supplier object
+   * @returns LoginResponse containing user data and tokens
+   */
   async login(user: UserResponse | SupplierResponse): Promise<LoginResponse> {
     const payload = {
       email: user.email,
@@ -186,19 +190,26 @@ export class AuthService {
     throw new NotFoundException('User not found');
   }
 
-  async verifyToken(token: string): Promise<any> {
-    try {
-      return await this.jwtService.verifyAsync(token);
-    } catch (err) {
-      console.error('Token verification failed:', err);
-      throw new UnauthorizedException(
-        'Invalid or expired token',
-        typeof err === 'object' && err !== null && 'message' in err
-          ? String((err as { message?: unknown }).message)
-          : undefined,
-      );
-    }
-  }
+  // /**
+  //  * Verifies a JWT token
+  //  *
+  //  * @param token - The JWT token to verify
+  //  * @returns Decoded token payload
+  //  * @throws UnauthorizedException if token is invalid or expired
+  //  */
+  // async verifyToken(token: string): Promise<any> {
+  //   try {
+  //     return await this.jwtService.verifyAsync(token);
+  //   } catch (err) {
+  //     console.error('Token verification failed:', err);
+  //     throw new UnauthorizedException(
+  //       'Invalid or expired token',
+  //       typeof err === 'object' && err !== null && 'message' in err
+  //         ? String((err as { message?: unknown }).message)
+  //         : undefined,
+  //     );
+  //   }
+  // }
 
   /**
    * Registers a new customer user in the system

@@ -146,7 +146,7 @@ export class Supplier extends Document {
   @Prop()
   resetPasswordCode: string;
 
-  @Prop()
+  @Prop({ type: Date, default: null, required: false })
   resetPasswordCodeExpiry: Date | null;
 }
 

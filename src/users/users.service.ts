@@ -19,6 +19,14 @@ import { randomBytes } from 'crypto';
 export class UsersService {
   constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) {}
 
+  /**
+   * Creates a new user in the database
+   *
+   * @param createUserDto - Data transfer object containing user information
+   * @returns A user response object with sensitive fields removed
+   * @throws BadRequestException if validation fails or email already exists
+   * @throws InternalServerErrorException if database operation fails
+   */
   async create(createUserDto: CreateUserDto): Promise<UserResponse> {
     try {
       const newUser = new this.userModel(createUserDto);
@@ -56,6 +64,12 @@ export class UsersService {
     }
   }
 
+  /**
+   * Retrieves all users from the database
+   *
+   * @returns Array of users with passwords excluded
+   * @throws InternalServerErrorException if database operation fails
+   */
   async findAll(): Promise<Omit<User, 'password'>[]> {
     try {
       const users = await this.userModel.find().exec();
@@ -74,6 +88,14 @@ export class UsersService {
     }
   }
 
+  /**
+   * Finds a user by their MongoDB ID
+   *
+   * @param id - MongoDB ObjectId as string
+   * @returns The user if found (with password excluded) or null if not found
+   * @throws BadRequestException if the ID format is invalid
+   * @throws InternalServerErrorException if database operation fails
+   */
   async findById(id: string): Promise<UserResponse | null> {
     try {
       if (!id.match(/^[0-9a-fA-F]{24}$/)) {
@@ -106,6 +128,17 @@ export class UsersService {
     }
   }
 
+  /**
+   * Finds a user by ID and includes the password field
+   *
+   * This method is primarily used for authentication purposes.
+   * The password field is normally excluded from queries.
+   *
+   * @param id - MongoDB ObjectId as string
+   * @returns The user document including password if found, null otherwise
+   * @throws BadRequestException if the ID format is invalid
+   * @throws InternalServerErrorException if database operation fails
+   */
   async findbyIdWithPassword(id: string): Promise<UserDocument | null> {
     try {
       if (!id.match(/^[0-9a-fA-F]{24}$/)) {
@@ -134,6 +167,13 @@ export class UsersService {
     }
   }
 
+  /**
+   * Finds a user by their email address
+   *
+   * @param email - The email address to search for
+   * @returns The user document if found, or null if no user exists with the given email
+   * @throws InternalServerErrorException if database operation fails
+   */
   async findByEmail(email: string): Promise<UserDocument | null> {
     try {
       const user = await this.userModel.findOne({ email }).exec();
@@ -157,6 +197,19 @@ export class UsersService {
       );
     }
   }
+
+  /**
+   * Retrieves a user's password by their ID
+   *
+   * This method explicitly includes the password field which is normally excluded from queries.
+   * It should only be used for authentication purposes.
+   *
+   * @param id - The MongoDB ID of the user
+   * @returns The user's hashed password if found, or null if user doesn't exist
+   * @throws BadRequestException if the ID format is invalid
+   * @throws NotFoundException if no user with the given ID exists
+   * @throws InternalServerErrorException if database operation fails
+   */
   async findPasswordById(id: string): Promise<string | null> {
     try {
       if (!id.match(/^[0-9a-fA-F]{24}$/)) {
@@ -185,6 +238,19 @@ export class UsersService {
     }
   }
 
+  /**
+   * Updates a user's information
+   *
+   * If the update includes a password, it will be hashed before storage.
+   *
+   * @param id - MongoDB ObjectId as string
+   * @param updateUserDto - Partial user object with fields to update
+   * @returns Updated user object with password excluded
+   * @throws BadRequestException if validation fails or ID format is invalid
+   * @throws NotFoundException if user is not found
+   * @throws ConflictException if update would create a duplicate email
+   * @throws InternalServerErrorException if database operation fails
+   */
   async update(
     id: string,
     updateUserDto: UpdateUserDto,
@@ -241,6 +307,15 @@ export class UsersService {
     }
   }
 
+  /**
+   * Removes a user from the database
+   *
+   * @param id - MongoDB ObjectId as string
+   * @returns The deleted user document or null if not found
+   * @throws BadRequestException if the ID format is invalid
+   * @throws NotFoundException if user is not found
+   * @throws InternalServerErrorException if database operation fails
+   */
   async remove(id: string): Promise<UserDocument | null> {
     try {
       if (!id.match(/^[0-9a-fA-F]{24}$/)) {
@@ -268,6 +343,17 @@ export class UsersService {
     }
   }
 
+  /**
+   * Saves changes to an existing user document
+   *
+   * This method is used when you already have a user document that has been modified
+   * and needs to be persisted to the database.
+   *
+   * @param user - The user document to save
+   * @returns The saved user document
+   * @throws BadRequestException if validation fails
+   * @throws InternalServerErrorException if database operation fails
+   */
   async updateUser(user: UserDocument): Promise<UserDocument> {
     try {
       return await user.save();
@@ -282,6 +368,19 @@ export class UsersService {
     }
   }
 
+  /**
+   * Updates a user's notification preferences
+   *
+   * Allows updating one or more notification settings (push, email, SMS).
+   * Only the provided preferences will be updated; others remain unchanged.
+   *
+   * @param userId - MongoDB ObjectId as string
+   * @param preferences - Object containing notification preferences to update
+   * @returns The updated user document
+   * @throws BadRequestException if ID format is invalid or no preferences provided
+   * @throws NotFoundException if user is not found
+   * @throws InternalServerErrorException if database operation fails
+   */
   async updateNotificationPreferences(
     userId: string,
     preferences: { push?: boolean; email?: boolean; sms?: boolean },

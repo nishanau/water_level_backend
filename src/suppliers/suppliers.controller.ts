@@ -54,7 +54,10 @@ export class SuppliersController {
   @Patch()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin', 'supplier')
-  update(@Req() req, @Body() updateSupplierDto: UpdateSupplierDto) {
+  update(
+    @Req() req: Request & { user: { userId: string } },
+    @Body() updateSupplierDto: UpdateSupplierDto,
+  ) {
     return this.suppliersService.update(req.user.userId, updateSupplierDto);
   }
 

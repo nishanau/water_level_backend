@@ -11,7 +11,6 @@ import { CreateSupplierDto } from './dto/create-supplier.dto';
 import { UpdateSupplierDto } from './dto/update-supplier.dto';
 import { SupplierResponse } from 'src/auth/types/auth.types';
 import { randomBytes } from 'crypto';
-import Types from 'mongoose';
 @Injectable()
 export class SuppliersService {
   constructor(
@@ -42,16 +41,9 @@ export class SuppliersService {
     const verificationToken = randomBytes(32).toString('hex');
     createdSupplier.emailVerificationToken = verificationToken;
     const savedSupplier = await createdSupplier.save();
+    const response = savedSupplier.toObject() as SupplierResponse;
 
-    return {
-      ...savedSupplier.toObject(),
-
-      _id: (savedSupplier._id as Types.ObjectId).toString(),
-      reviews: (savedSupplier.reviews || []).map((review: any) => ({
-        ...review,
-        userId: review.userId?.toString?.() ?? review.userId,
-      })),
-    };
+    return response;
   }
 
   async findAll(query: any = {}): Promise<Supplier[]> {
